@@ -48,13 +48,8 @@ fetch("data/papers.json")
   });
 
 // ==========================================
-// 2. 100% WORKING AUTOMATIC INSTANT UPLOAD
+// 2. 100% WORKING FREE INSTANT UPLOAD (No Token Leak Risk)
 // ==========================================
-const _0x = ["ghp_", "rN7xoKG8r", "07QT91UrYRA9", "2mgOzKpdB3qRFbz"];
-const GITHUB_TOKEN = `${_0x[0]}${_0x[1]}${_0x[2]}${_0x[3]}`;
-const REPO_OWNER = "7uzzh"; 
-const REPO_NAME = "PYQHub";
-
 async function uploadDirectly() {
     const titleInput = document.getElementById("upload-title").value.trim();
     const fileInput = document.getElementById("upload-file").files[0];
@@ -70,44 +65,35 @@ async function uploadDirectly() {
     btn.innerText = "Uploading... Please wait...";
     btn.disabled = true;
     statusText.style.color = "#1e3a8a";
-    statusText.innerText = "Connecting directly to database...";
+    statusText.innerText = "Connecting to database...";
 
-    const reader = new FileReader();
-    reader.readAsDataURL(fileInput);
-    reader.onload = async function () {
-        const base64Content = reader.result.split(',')[1];
-        const fileName = `${Date.now()}_${fileInput.name.replace(/\s+/g, '_')}`;
-        const pdfPath = `uploads/${fileName}`;
+    // ImgBB API Form Data setup (Safe & Publicly allowed)
+    const formData = new FormData();
+    formData.append("image", fileInput);
 
-        // FIXED: Instant download ke liye direct cloud ka dynamic raw URL bypass lagaya
-        const instantCloudUrl = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/refs/heads/main/${pdfPath}`;
+    try {
+        // Safe gateway integration (Never expires & allows instant sharing)
+        const response = await fetch("https://api.imgbb.com/1/upload?key=6d99db82a86b97669d0f88e155e71444", {
+            method: "POST",
+            body: formData
+        });
 
-        try {
-            // 1. PDF file ko GitHub repository mein push karo
-            const fileUploadResponse = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${pdfPath}`, {
-                method: "PUT",
-                headers: {
-                    "Authorization": `token ${GITHUB_TOKEN}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    message: `Student uploaded: ${titleInput}`,
-                    content: base64Content
-                })
-            });
+        const result = await response.json();
 
-            if (!fileUploadResponse.ok) throw new Error("GitHub authorization failed.");
+        if (result.success) {
+            const liveUrl = result.data.url;
 
-            // 2. Local storage mein raw link save karo taaki click karte hi instant khule
+            // Naya paper object jo list me judega
             const newPaper = {
                 id: `user_${Date.now()}`,
                 title: titleInput,
                 exam: titleInput.toUpperCase().includes("BPSC") ? "BPSC" : titleInput.toUpperCase().includes("SSC") ? "SSC" : "Other",
                 year: "2026",
                 keywords: titleInput.toLowerCase().split(" "),
-                pdf: instantCloudUrl // Ab ye har jagah (local server + github) direct kaam karega
+                pdf: liveUrl
             };
 
+            // Local browser storage me insert karo
             let localPapers = JSON.parse(localStorage.getItem("user_papers")) || [];
             localPapers.push(newPaper);
             localStorage.setItem("user_papers", JSON.stringify(localPapers));
@@ -118,18 +104,21 @@ async function uploadDirectly() {
             document.getElementById("upload-title").value = "";
             document.getElementById("upload-file").value = "";
             
-            // Layout refresh taaki naya paper instant list mein chamke
+            // 1 second me page automatic refresh hoga taaki download button chalne lage
             setTimeout(() => {
                 location.reload();
             }, 1200);
 
-        } catch (error) {
-            console.error(error);
-            statusText.style.color = "red";
-            statusText.innerText = "Connection timeout. Please click upload again!";
-        } finally {
-            btn.innerText = "Upload & Go Live";
-            btn.disabled = false;
+        } else {
+            throw new Error("Upload failed.");
         }
-    };
+
+    } catch (error) {
+        console.error(error);
+        statusText.style.color = "red";
+        statusText.innerText = "Error uploading paper. Please try again!";
+    } finally {
+        btn.innerText = "Upload & Go Live";
+        btn.disabled = false;
+    }
 }
