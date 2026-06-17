@@ -1,10 +1,8 @@
-<!DOCTYPE html>
+=<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-
-  <meta name="google-site-verification" content="KTkWXPNW9EHUCLfHgX0H9hQhlyyl4-7wDWXd-Ga39G0" />
-
+<meta name="google-site-verification" content="KTkWXPNW9EHUCLfHgX0H9hQhlyyl4-7wDWXd-Ga39G0" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PYQHub - Previous Year Question Papers</title>
 <link rel="stylesheet" href="style.css">
@@ -19,18 +17,39 @@
 
 <div class="hero">
     <h2>Find Previous Year Question Papers Instantly</h2>
-  <input type="text" id="search" placeholder="Search BPSC, SSC, Railway, AKU, PPU...">
-    <div id="paper-list"></div>
+    <input type="text" id="search" placeholder="Search BPSC, SSC, Railway, AKU, PPU...">
+    <!-- Dynamic Search Results Yahan Aayenge -->
+    <div id="paper-list" class="paper-results-container"></div>
 </div>
 
 <div class="categories">
-    <div class="card">BPSC</div>
-    <div class="card">SSC</div>
-    <div class="card">Railway</div>
-    <div class="card">University Papers</div>
-    <div class="card">ITI</div>
-    <div class="card">Polytechnic</div>
+    <div class="card" onclick="setSearch('BPSC')">BPSC</div>
+    <div class="card" onclick="setSearch('SSC')">SSC</div>
+    <div class="card" onclick="setSearch('Railway')">Railway</div>
+    <div class="card" onclick="setSearch('University Papers')">University Papers</div>
+    <div class="card" onclick="setSearch('ITI')">ITI</div>
+    <div class="card" onclick="setSearch('Polytechnic')">Polytechnic</div>
 </div>
+
+<!-- AdSense ke liye mandatory Footer Links -->
+<footer style="background:#1e3a8a; color:white; text-align:center; padding:20px; margin-top:40px; font-size:14px;">
+    <p>&copy; 2026 PYQHub. All Rights Reserved.</p>
+    <div style="margin-top:10px;">
+        <a href="pages/about.html" style="color:#cbd5e1; text-decoration:none; margin:0 10px;">About Us</a> | 
+        <a href="pages/contact.html" style="color:#cbd5e1; text-decoration:none; margin:0 10px;">Contact Us</a> | 
+        <a href="pages/privacy-policy.html" style="color:#cbd5e1; text-decoration:none; margin:0 10px;">Privacy Policy</a>
+    </div>
+</footer>
+
 <script src="script.js"></script>
+<script>
+    // Category box par click karte hi search box mein text aa jaye uske liye helper
+    function setSearch(val) {
+        const searchInput = document.getElementById('search');
+        searchInput.value = val;
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        window.scrollTo({ top: 150, behavior: 'smooth' });
+    }
+</script>
 </body>
 </html>
