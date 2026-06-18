@@ -1,80 +1,86 @@
-// Local memory to hold files for the current session safely
-window.uploadedFilesCache = window.uploadedFilesCache || {};
+// ==========================================
+// 0. SUPABASE CONFIGURATION (LIVE DATABASE)
+// ==========================================
+const SUPABASE_URL = "https://ckktgcfwjrorucpiabzi.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNra3RnY2Z3anJvcnVjcGlhYnppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NjIyOTYsImV4cCI6MjA5NzMzODI5Nn0.12F4x2Y1tkj0aYT9uVDv3JFfjAl7Ho4OnQloXMHl6jw";
 
-// Function to render cards on screen dynamically
-function appendPaperCard(paper, fileObject) {
-    const paperList = document.getElementById("paper-list");
-    const cardId = `user_${Date.now()}`;
-    
-    // Cache the file object with a unique key
-    window.uploadedFilesCache[cardId] = fileObject;
-
-    const cardHTML = `
-      <div class="paper-item-card">
-        <h3>${paper.title}</h3>
-        <p>Exam: ${paper.exam} | Year: ${paper.year}</p>
-        <a class="download-btn" href="#" onclick="viewLocalFile('${cardId}', event)">Download PDF</a>
-      </div>
-    `;
-    
-    // Naya paper sabse upar bina refresh ke add hoga
-    paperList.insertAdjacentHTML('afterbegin', cardHTML);
-}
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ==========================================
-// 1. DATA FETCH & ADVANCED SEARCH SYSTEM
+// 1. DATA FETCH & LIVE SUPABASE RENDER
 // ==========================================
-fetch("data/papers.json")
-  .then(response => response.json())
-  .then(data => {
+async function loadAllPapers() {
     const paperList = document.getElementById("paper-list");
-    paperList.innerHTML = "";
+    paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #1e3a8a; padding: 20px;">Loading papers from Cloud Database...</p>`;
 
-    if (data.length === 0) {
-        paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #6b7280; padding: 20px;">No papers found. Try another search!</p>`;
-        return;
-    }
+    try {
+        // 1. Fetch static papers from local JSON file
+        const jsonResponse = await fetch("data/papers.json");
+        const jsonPapers = await jsonResponse.json();
 
-    // Sirf verification wale static papers load honge refresh par
-    data.forEach(paper => {
-        paperList.innerHTML += `
-          <div class="paper-item-card">
-            <h3>${paper.title}</h3>
-            <p>Exam: ${paper.exam} | Year: ${paper.year}</p>
-            <a class="download-btn" href="${paper.pdf || '#'}" target="_blank">Download PDF</a>
-          </div>
-        `;
-    });
+        // 2. Fetch permanent user uploaded papers from Supabase Cloud
+        const { data: dbPapers, error } = await _supabase
+            .from('papers')
+            .select('*')
+            .order('id', { ascending: false });
 
-    // Search input functionality
-    document.getElementById("search").addEventListener("input", function () {
-      const value = this.value.toLowerCase().trim();
-      const cards = document.querySelectorAll(".paper-item-card");
+        if (error) throw error;
 
-      cards.forEach(card => {
-        const text = card.innerText.toLowerCase();
-        if (text.includes(value) || value === "") {
-            card.style.display = "block";
-        } else {
-            card.style.display = "none";
+        // Both data mix karo
+        let combinedData = [...(dbPapers || []), ...jsonPapers];
+
+        function showPapers(papers) {
+            paperList.innerHTML = "";
+            if (papers.length === 0) {
+                paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #6b7280; padding: 20px;">No papers found. Try another search!</p>`;
+                return;
+            }
+
+            papers.forEach(paper => {
+                paperList.innerHTML += `
+                  <div class="paper-item-card">
+                    <h3>${paper.title}</h3>
+                    <p>Exam: ${paper.exam} | Year: ${paper.year}</p>
+                    <a class="download-btn" href="${paper.pdf}" target="_blank">Download PDF</a>
+                  </div>
+                `;
+            });
         }
-      });
-    });
-  });
 
-// Flawless open mechanism for the active session upload
-function viewLocalFile(cardId, event) {
-    event.preventDefault();
-    if (window.uploadedFilesCache[cardId]) {
-        const blobUrl = URL.createObjectURL(window.uploadedFilesCache[cardId]);
-        window.open(blobUrl, '_blank');
+        // Display mixed papers instantly
+        showPapers(combinedData);
+
+        // Live Search Handler
+        document.getElementById("search").replaceWith(document.getElementById("search").cloneNode(true)); // reset search listener
+        document.getElementById("search").addEventListener("input", function () {
+            const value = this.value.toLowerCase().trim();
+            if (value === "") {
+                showPapers(combinedData);
+                return;
+            }
+
+            const filtered = combinedData.filter(p => {
+                const titleMatch = p.title ? p.title.toLowerCase().includes(value) : false;
+                const examMatch = p.exam ? p.exam.toLowerCase().includes(value) : false;
+                const yearMatch = p.year ? p.year.toString().includes(value) : false;
+                return titleMatch || examMatch || yearMatch;
+            });
+            showPapers(filtered);
+        });
+
+    } catch (err) {
+        console.error("Fetch Error:", err);
+        paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: red; padding: 20px;">Failed to load cloud database. Please refresh!</p>`;
     }
 }
 
+// Automatically load everything on page open
+document.addEventListener("DOMContentLoaded", loadAllPapers);
+
 // ==========================================
-// 2. STABLE LIVE SUBMISSION PIPELINE
+// 2. ULTRA-SMOOTH PERMANENT CLOUD UPLOAD
 // ==========================================
-async function uploadDirectly() {
+function uploadDirectly() {
     const customTitle = document.getElementById("upload-custom-title").value.trim();
     const fileInput = document.getElementById("upload-file").files[0];
     const statusText = document.getElementById("upload-status");
@@ -93,50 +99,64 @@ async function uploadDirectly() {
         return;
     }
 
-    btn.innerText = "Publishing... Please wait...";
+    btn.innerText = "Saving to Cloud... Please wait...";
     btn.disabled = true;
     statusText.style.color = "#1e3a8a";
-    statusText.innerText = "Injecting live onto screen...";
+    statusText.innerText = "Uploading permanently to database...";
 
-    let detectedExam = "Other";
-    let upperTitle = customTitle.toUpperCase();
-    if (upperTitle.includes("BPSC")) detectedExam = "BPSC";
-    else if (upperTitle.includes("SSC")) detectedExam = "SSC";
-    else if (upperTitle.includes("RAILWAY")) detectedExam = "Railway";
-
-    const yearMatch = customTitle.match(/\b(20\d{2})\b/);
-    let detectedYear = yearMatch ? yearMatch[0] : "2026";
-
-    const temporaryPaper = {
-        title: customTitle,
-        exam: detectedExam,
-        year: detectedYear
-    };
-
-    // 1. Instant dynamic injection (Bina page reload ke screen par card chala jayega)
-    appendPaperCard(temporaryPaper, fileInput);
-
-    // 2. Direct pipeline to your email (Formspree takes the file physically)
-    try {
-        const emailData = new FormData();
-        emailData.append("Exam_Title", customTitle);
-        emailData.append("Attached_PDF", fileInput);
-
-        fetch("https://formspree.io/f/xojzzdaw", {
-            method: "POST",
-            body: emailData,
-            headers: { 'Accept': 'application/json' }
-        });
-    } catch (e) {
-        console.log("Dispatched in background.");
-    }
-
-    statusText.style.color = "green";
-    statusText.innerText = "🎉 Success! Paper is live below!";
+    // Read file and push to Supabase
+    const reader = new FileReader();
+    reader.readAsDataURL(fileInput);
     
-    // Clear inputs smoothly without breaking cache
-    document.getElementById("upload-custom-title").value = "";
-    document.getElementById("upload-file").value = "";
-    btn.innerText = "Upload & Go Live";
-    btn.disabled = false;
+    reader.onload = async function () {
+        const base64PDF = reader.result;
+
+        let detectedExam = "Other";
+        let upperTitle = customTitle.toUpperCase();
+        if (upperTitle.includes("BPSC")) detectedExam = "BPSC";
+        else if (upperTitle.includes("SSC")) detectedExam = "SSC";
+        else if (upperTitle.includes("RAILWAY")) detectedExam = "Railway";
+
+        const yearMatch = customTitle.match(/\b(20\d{2})\b/);
+        let detectedYear = yearMatch ? yearMatch[0] : "2026";
+
+        try {
+            // 1. Permanent insert into Supabase Cloud Table
+            const { error } = await _supabase
+                .from('papers')
+                .insert([
+                    { title: customTitle, exam: detectedExam, year: detectedYear, pdf: base64PDF }
+                ]);
+
+            if (error) throw error;
+
+            // 2. Silent Formspree Backup Alert Email
+            try {
+                const emailData = new FormData();
+                emailData.append("Exam_Title", customTitle);
+                emailData.append("Attached_PDF", fileInput);
+                fetch("https://formspree.io/f/xojzzdaw", { method: "POST", body: emailData, headers: { 'Accept': 'application/json' } });
+            } catch (e) { console.log("Formspree logged"); }
+
+            statusText.style.color = "green";
+            statusText.innerText = "🎉 Success! Paper uploaded and live permanently!";
+            
+            document.getElementById("upload-custom-title").value = "";
+            document.getElementById("upload-file").value = "";
+            
+            // Reload list to fetch the newly added paper from database smoothly
+            setTimeout(() => {
+                loadAllPapers();
+                statusText.innerText = "";
+            }, 1500);
+
+        } catch (error) {
+            console.error("Supabase Error:", error);
+            statusText.style.color = "red";
+            statusText.innerText = "Database error. Please try again!";
+        } finally {
+            btn.innerText = "Upload & Go Live";
+            btn.disabled = false;
+        }
+    };
 }
