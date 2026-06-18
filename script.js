@@ -1,24 +1,23 @@
-// Session memory cache to hold actual files perfectly without losing them
+// Local memory to hold files for the current session safely
 window.uploadedFilesCache = window.uploadedFilesCache || {};
 
-// Main function to render cards dynamically
-function appendPaperCard(paper) {
+// Function to render cards on screen dynamically
+function appendPaperCard(paper, fileObject) {
     const paperList = document.getElementById("paper-list");
-    let isUserUploaded = paper.id && paper.id.toString().startsWith("user_");
+    const cardId = `user_${Date.now()}`;
     
-    let actionAttribute = isUserUploaded 
-      ? `href="#" onclick="viewLocalFile('${paper.id}', event)"` 
-      : `href="${paper.pdf || '#'}" target="_blank"`;
+    // Cache the file object with a unique key
+    window.uploadedFilesCache[cardId] = fileObject;
 
     const cardHTML = `
-      <div class="paper-item-card" id="card-${paper.id}">
+      <div class="paper-item-card">
         <h3>${paper.title}</h3>
         <p>Exam: ${paper.exam} | Year: ${paper.year}</p>
-        <a class="download-btn" ${actionAttribute}>Download PDF</a>
+        <a class="download-btn" href="#" onclick="viewLocalFile('${cardId}', event)">Download PDF</a>
       </div>
     `;
     
-    // Naya uploaded paper hamesha sabse upar dikhega
+    // Naya paper sabse upar bina refresh ke add hoga
     paperList.insertAdjacentHTML('afterbegin', cardHTML);
 }
 
@@ -28,15 +27,16 @@ function appendPaperCard(paper) {
 fetch("data/papers.json")
   .then(response => response.json())
   .then(data => {
-    // LocalStorage metadata handle karo
-    let localPapers = JSON.parse(localStorage.getItem("user_papers")) || [];
-    
-    // Pehle se padi memory rendering clear karke load karo
-    document.getElementById("paper-list").innerHTML = "";
+    const paperList = document.getElementById("paper-list");
+    paperList.innerHTML = "";
 
-    // Purane global standard JSON papers load karo
+    if (data.length === 0) {
+        paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #6b7280; padding: 20px;">No papers found. Try another search!</p>`;
+        return;
+    }
+
+    // Sirf verification wale static papers load honge refresh par
     data.forEach(paper => {
-        const paperList = document.getElementById("paper-list");
         paperList.innerHTML += `
           <div class="paper-item-card">
             <h3>${paper.title}</h3>
@@ -46,12 +46,7 @@ fetch("data/papers.json")
         `;
     });
 
-    // Local submissions display back tracking (Sirf temporary preview dikhane ke liye)
-    localPapers.forEach(paper => {
-        appendPaperCard(paper);
-    });
-
-    // Instant Keyword Filter Match
+    // Search input functionality
     document.getElementById("search").addEventListener("input", function () {
       const value = this.value.toLowerCase().trim();
       const cards = document.querySelectorAll(".paper-item-card");
@@ -67,19 +62,17 @@ fetch("data/papers.json")
     });
   });
 
-// Open cached temporary document links flawlessly
-function viewLocalFile(paperId, event) {
+// Flawless open mechanism for the active session upload
+function viewLocalFile(cardId, event) {
     event.preventDefault();
-    if (window.uploadedFilesCache[paperId]) {
-        const blobUrl = URL.createObjectURL(window.uploadedFilesCache[paperId]);
+    if (window.uploadedFilesCache[cardId]) {
+        const blobUrl = URL.createObjectURL(window.uploadedFilesCache[cardId]);
         window.open(blobUrl, '_blank');
-    } else {
-        alert("Session cleared. Please re-select the PDF file to preview it again!");
     }
 }
 
 // ==========================================
-// 2. ULTRA-SMOOTH NO-RELOAD INJECTION PIPELINE
+// 2. STABLE LIVE SUBMISSION PIPELINE
 // ==========================================
 async function uploadDirectly() {
     const customTitle = document.getElementById("upload-custom-title").value.trim();
@@ -100,15 +93,10 @@ async function uploadDirectly() {
         return;
     }
 
-    btn.innerText = "Adding... Please wait...";
+    btn.innerText = "Publishing... Please wait...";
     btn.disabled = true;
     statusText.style.color = "#1e3a8a";
-    statusText.innerText = "Injecting live into list...";
-
-    const paperId = `user_${Date.now()}`;
-
-    // Lock file reference directly into browser session stack (No loss)
-    window.uploadedFilesCache[paperId] = fileInput;
+    statusText.innerText = "Injecting live onto screen...";
 
     let detectedExam = "Other";
     let upperTitle = customTitle.toUpperCase();
@@ -119,40 +107,34 @@ async function uploadDirectly() {
     const yearMatch = customTitle.match(/\b(20\d{2})\b/);
     let detectedYear = yearMatch ? yearMatch[0] : "2026";
 
-    const newPaper = {
-        id: paperId,
+    const temporaryPaper = {
         title: customTitle,
         exam: detectedExam,
         year: detectedYear
     };
 
-    // Save tracking details
-    let localPapers = JSON.parse(localStorage.getItem("user_papers")) || [];
-    localPapers.push(newPaper);
-    localStorage.setItem("user_papers", JSON.stringify(localPapers));
+    // 1. Instant dynamic injection (Bina page reload ke screen par card chala jayega)
+    appendPaperCard(temporaryPaper, fileInput);
 
-    // Dynamic direct injection onto DOM (0.001 seconds display jump)
-    appendPaperCard(newPaper);
-
-    // Silent Formspree background transmission
+    // 2. Direct pipeline to your email (Formspree takes the file physically)
     try {
-        const alertData = new FormData();
-        alertData.append("Paper_Title", customTitle);
-        alertData.append("Attached_File", fileInput); // Real PDF goes straight to your email inbox!
+        const emailData = new FormData();
+        emailData.append("Exam_Title", customTitle);
+        emailData.append("Attached_PDF", fileInput);
 
         fetch("https://formspree.io/f/xojzzdaw", {
             method: "POST",
-            body: alertData,
+            body: emailData,
             headers: { 'Accept': 'application/json' }
         });
     } catch (e) {
-        console.log("Background link dispatched.");
+        console.log("Dispatched in background.");
     }
 
     statusText.style.color = "green";
-    statusText.innerText = "🎉 Success! Paper added live below instantly!";
+    statusText.innerText = "🎉 Success! Paper is live below!";
     
-    // Clear elements cleanly without any page reload
+    // Clear inputs smoothly without breaking cache
     document.getElementById("upload-custom-title").value = "";
     document.getElementById("upload-file").value = "";
     btn.innerText = "Upload & Go Live";
