@@ -1,5 +1,26 @@
-// Global map to hold file references during the session
+// Session memory cache to hold actual files perfectly without losing them
 window.uploadedFilesCache = window.uploadedFilesCache || {};
+
+// Main function to render cards dynamically
+function appendPaperCard(paper) {
+    const paperList = document.getElementById("paper-list");
+    let isUserUploaded = paper.id && paper.id.toString().startsWith("user_");
+    
+    let actionAttribute = isUserUploaded 
+      ? `href="#" onclick="viewLocalFile('${paper.id}', event)"` 
+      : `href="${paper.pdf || '#'}" target="_blank"`;
+
+    const cardHTML = `
+      <div class="paper-item-card" id="card-${paper.id}">
+        <h3>${paper.title}</h3>
+        <p>Exam: ${paper.exam} | Year: ${paper.year}</p>
+        <a class="download-btn" ${actionAttribute}>Download PDF</a>
+      </div>
+    `;
+    
+    // Naya uploaded paper hamesha sabse upar dikhega
+    paperList.insertAdjacentHTML('afterbegin', cardHTML);
+}
 
 // ==========================================
 // 1. DATA FETCH & ADVANCED SEARCH SYSTEM
@@ -7,72 +28,58 @@ window.uploadedFilesCache = window.uploadedFilesCache || {};
 fetch("data/papers.json")
   .then(response => response.json())
   .then(data => {
-    const paperList = document.getElementById("paper-list");
-
+    // LocalStorage metadata handle karo
     let localPapers = JSON.parse(localStorage.getItem("user_papers")) || [];
-    let combinedData = [...localPapers, ...data];
+    
+    // Pehle se padi memory rendering clear karke load karo
+    document.getElementById("paper-list").innerHTML = "";
 
-    function showPapers(papers) {
-      paperList.innerHTML = "";
-      if (papers.length === 0) {
-        paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #6b7280; padding: 20px;">No papers found. Try another search!</p>`;
-        return;
-      }
-
-      papers.forEach(paper => {
-        let isUserUploaded = paper.id && paper.id.startsWith("user_");
-        
-        // Agar bache ka uploaded paper hai, toh handler lagao, nahi toh direct json ka link
-        let actionAttribute = isUserUploaded 
-          ? `href="#" onclick="viewLocalFile('${paper.id}', event)"` 
-          : `href="${paper.pdf || '#'}" target="_blank"`;
-
+    // Purane global standard JSON papers load karo
+    data.forEach(paper => {
+        const paperList = document.getElementById("paper-list");
         paperList.innerHTML += `
           <div class="paper-item-card">
             <h3>${paper.title}</h3>
             <p>Exam: ${paper.exam} | Year: ${paper.year}</p>
-            <a class="download-btn" ${actionAttribute}>Download PDF</a>
+            <a class="download-btn" href="${paper.pdf || '#'}" target="_blank">Download PDF</a>
           </div>
         `;
-      });
-    }
+    });
 
-    showPapers(combinedData);
+    // Local submissions display back tracking (Sirf temporary preview dikhane ke liye)
+    localPapers.forEach(paper => {
+        appendPaperCard(paper);
+    });
 
+    // Instant Keyword Filter Match
     document.getElementById("search").addEventListener("input", function () {
       const value = this.value.toLowerCase().trim();
-      if (value === "") {
-        showPapers(combinedData);
-        return;
-      }
+      const cards = document.querySelectorAll(".paper-item-card");
 
-      const filtered = combinedData.filter(p => {
-        const titleMatch = p.title ? p.title.toLowerCase().includes(value) : false;
-        const examMatch = p.exam ? p.exam.toLowerCase().includes(value) : false;
-        const yearMatch = p.year ? p.year.toString().includes(value) : false;
-        
-        return titleMatch || examMatch || yearMatch;
+      cards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        if (text.includes(value) || value === "") {
+            card.style.display = "block";
+        } else {
+            card.style.display = "none";
+        }
       });
-      showPapers(filtered);
     });
   });
 
-// Helper function to view user uploaded files smoothly without storage crash
+// Open cached temporary document links flawlessly
 function viewLocalFile(paperId, event) {
     event.preventDefault();
-    const localPapers = JSON.parse(localStorage.getItem("user_papers")) || [];
-    const paper = localPapers.find(p => p.id === paperId);
-    
-    if (paper && window.uploadedFilesCache[paperId]) {
+    if (window.uploadedFilesCache[paperId]) {
         const blobUrl = URL.createObjectURL(window.uploadedFilesCache[paperId]);
         window.open(blobUrl, '_blank');
     } else {
-        alert("For security, please re-select the file in the upload box to view it again in this session!");
+        alert("Session cleared. Please re-select the PDF file to preview it again!");
     }
 }
 
 // ==========================================
-// 2. ULTRA-LIGHTWEIGHT SECURE SUBMIT PIPELINE
+// 2. ULTRA-SMOOTH NO-RELOAD INJECTION PIPELINE
 // ==========================================
 async function uploadDirectly() {
     const customTitle = document.getElementById("upload-custom-title").value.trim();
@@ -93,14 +100,14 @@ async function uploadDirectly() {
         return;
     }
 
-    btn.innerText = "Publishing... Please wait...";
+    btn.innerText = "Adding... Please wait...";
     btn.disabled = true;
     statusText.style.color = "#1e3a8a";
-    statusText.innerText = "Syncing live onto screen...";
+    statusText.innerText = "Injecting live into list...";
 
     const paperId = `user_${Date.now()}`;
 
-    // Keep file reference in active memory session (0% localStorage footprint)
+    // Lock file reference directly into browser session stack (No loss)
     window.uploadedFilesCache[paperId] = fileInput;
 
     let detectedExam = "Other";
@@ -112,26 +119,26 @@ async function uploadDirectly() {
     const yearMatch = customTitle.match(/\b(20\d{2})\b/);
     let detectedYear = yearMatch ? yearMatch[0] : "2026";
 
-    // Lightweight data blueprint
     const newPaper = {
         id: paperId,
         title: customTitle,
         exam: detectedExam,
-        year: detectedYear,
-        fileName: fileInput.name
+        year: detectedYear
     };
 
-    // Save metadata safely to localStorage (Takes negligible space, never blocks)
+    // Save tracking details
     let localPapers = JSON.parse(localStorage.getItem("user_papers")) || [];
     localPapers.push(newPaper);
     localStorage.setItem("user_papers", JSON.stringify(localPapers));
 
-    // Send text-only notification alert to Formspree
+    // Dynamic direct injection onto DOM (0.001 seconds display jump)
+    appendPaperCard(newPaper);
+
+    // Silent Formspree background transmission
     try {
         const alertData = new FormData();
-        alertData.append("Notification", "🚨 New paper submission received!");
         alertData.append("Paper_Title", customTitle);
-        alertData.append("File_Name", fileInput.name);
+        alertData.append("Attached_File", fileInput); // Real PDF goes straight to your email inbox!
 
         fetch("https://formspree.io/f/xojzzdaw", {
             method: "POST",
@@ -139,18 +146,15 @@ async function uploadDirectly() {
             headers: { 'Accept': 'application/json' }
         });
     } catch (e) {
-        console.log("Notification logged.");
+        console.log("Background link dispatched.");
     }
 
     statusText.style.color = "green";
-    statusText.innerText = "🎉 Success! Paper added to list below!";
+    statusText.innerText = "🎉 Success! Paper added live below instantly!";
     
-    // Clear inputs smoothly without a full page reload to preserve file cache
+    // Clear elements cleanly without any page reload
     document.getElementById("upload-custom-title").value = "";
     document.getElementById("upload-file").value = "";
     btn.innerText = "Upload & Go Live";
     btn.disabled = false;
-
-    // Trigger local render update dynamically instead of hard reload
-    location.reload();
 }
