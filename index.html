@@ -20,19 +20,21 @@
     <input type="text" id="search" placeholder="Search BPSC, SSC, Railway, AKU, PPU...">
     <div id="paper-list" class="paper-results-container"></div>
 </div>
+
 <div style="background: white; max-width: 500px; margin: 30px auto; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: left; border-top: 4px solid #10b981;">
     <h3 style="color: #1e3a8a; margin-top: 0; text-align: center;">📤 Instant Paper Upload</h3>
-    <p style="color: #64748b; font-size: 14px; text-align: center;">Select PDF, type exam name, and go live instantly!</p>
+    <p style="color: #64748b; font-size: 14px; text-align: center;">Type exam details, select PDF, and go live instantly!</p>
     
     <div style="display: flex; flex-direction: column; gap: 15px;">
         <div>
-            <label style="display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px;">Exam / Paper Name:</label>
-            <input type="text" id="upload-title" placeholder="e.g. BPSC 67th Prelims" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box;">
+            <label style="display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px;">Exam Name / Details:</label>
+            <input type="text" id="upload-custom-title" placeholder="e.g. BPSC 68th Mains Polity / AKU 3rd Sem" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box;">
         </div>
 
         <div>
             <label style="display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px;">Select PDF File:</label>
             <input type="file" id="upload-file" accept=".pdf" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; box-sizing: border-box;">
+            <small style="color: #64748b; font-size: 11px; display: block; margin-top: 4px;">⚠️ Sirf .pdf file allowed hai (Photos/Aadhaar auto-block ho jayenge)</small>
         </div>
 
         <button onclick="uploadDirectly()" id="upload-btn" style="background: #10b981; color: white; border: none; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 10px; width: 100%;">
@@ -62,6 +64,7 @@
 
 <script src="script.js"></script>
 <script>
+    // Category box click helper
     function setSearch(val) {
         const searchInput = document.getElementById('search');
         searchInput.value = val;
