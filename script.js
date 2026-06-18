@@ -1,31 +1,26 @@
 // ==========================================
-// 0. SUPABASE CONFIGURATION (LIVE DATABASE)
+// 0. GOOGLE SHEETS PIPELINE CONFIGURATION
 // ==========================================
-const SUPABASE_URL = "https://ckktgcfwjrorucpiabzi.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNra3RnY2Z3anJvcnVjcGlhYnppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NjIyOTYsImV4cCI6MjA5NzMzODI5Nn0.12F4x2Y1tkj0aYT9uVDv3JFfjAl7Ho4OnQloXMHl6jw";
-
-const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const GOOGLE_SCRIPT_URL = "YAHAN_APNA_WEB_APP_URL_PASTE_KARO";
 
 // ==========================================
-// 1. DATA FETCH & LIVE RENDER
+// 1. DATA FETCH & LIVE GOOGLE SHEET RENDER
 // ==========================================
 async function loadAllPapers() {
     const paperList = document.getElementById("paper-list");
-    paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #1e3a8a; padding: 20px;">Loading papers from Cloud Database...</p>`;
+    paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #1e3a8a; padding: 20px;">Loading papers from Live Database...</p>`;
 
     try {
+        // 1. Fetch static papers from local JSON file
         const jsonResponse = await fetch("data/papers.json");
         const jsonPapers = await jsonResponse.json();
 
-        // Live Cloud Data Fetch
-        const { data: dbPapers, error } = await _supabase
-            .from('papers')
-            .select('*')
-            .order('id', { ascending: false });
+        // 2. Fetch live papers from Google Sheet
+        const sheetResponse = await fetch(GOOGLE_SCRIPT_URL);
+        const sheetPapers = await sheetResponse.json();
 
-        if (error) throw error;
-
-        let combinedData = [...(dbPapers || []), ...jsonPapers];
+        // Dono data mix karo (Sheet wale papers upar dikhenge)
+        let combinedData = [...sheetPapers, ...jsonPapers];
 
         function showPapers(papers) {
             paperList.innerHTML = "";
@@ -47,7 +42,7 @@ async function loadAllPapers() {
 
         showPapers(combinedData);
 
-        // Instant Live Search Handler
+        // Live Search Handler
         document.getElementById("search").replaceWith(document.getElementById("search").cloneNode(true));
         document.getElementById("search").addEventListener("input", function () {
             const value = this.value.toLowerCase().trim();
@@ -74,7 +69,7 @@ async function loadAllPapers() {
 document.addEventListener("DOMContentLoaded", loadAllPapers);
 
 // ==========================================
-// 2. ULTRA-STABLE DIRECT INJECTION PIPELINE
+// 2. FILE UPLOAD & GOOGLE SHEET ENTRY PIPELINE
 // ==========================================
 function uploadDirectly() {
     const customTitle = document.getElementById("upload-custom-title").value.trim();
@@ -95,17 +90,23 @@ function uploadDirectly() {
         return;
     }
 
-    btn.innerText = "Connecting to Cloud... Please wait...";
+    btn.innerText = "Saving to Cloud... Please wait...";
     btn.disabled = true;
     statusText.style.color = "#1e3a8a";
-    statusText.innerText = "Publishing live to database...";
+    statusText.innerText = "Processing permanent upload...";
 
-    const reader = new FileReader();
-    reader.readAsDataURL(fileInput);
-    
-    reader.onload = async function () {
-        const base64PDF = reader.result;
+    // First push the file to Formspree to generate email + permanent link storage backup
+    const emailData = new FormData();
+    emailData.append("Exam_Title", customTitle);
+    emailData.append("Attached_File", fileInput);
 
+    fetch("https://formspree.io/f/xojzzdaw", {
+        method: "POST",
+        body: emailData,
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(response => {
+        // Formspree par file chali gayi, ab details Google Sheet mein daalenge
         let detectedExam = "Other";
         let upperTitle = customTitle.toUpperCase();
         if (upperTitle.includes("BPSC")) detectedExam = "BPSC";
@@ -115,42 +116,43 @@ function uploadDirectly() {
         const yearMatch = customTitle.match(/\b(20\d{2})\b/);
         let detectedYear = yearMatch ? yearMatch[0] : "2026";
 
-        try {
-            // Forcefully insert into unprotected direct database table
-            const { error: dbError } = await _supabase
-                .from('papers')
-                .insert([
-                    { title: customTitle, exam: detectedExam, year: detectedYear, pdf: base64PDF }
-                ]);
+        // Formspree attachment ya dynamic backup link representation
+        let temporaryLink = "https://formspree.io/submissions"; 
 
-            if (dbError) throw dbError;
+        const payload = {
+            title: customTitle,
+            exam: detectedExam,
+            year: detectedYear,
+            pdf: temporaryLink
+        };
 
-            // Optional backup transmission
-            try {
-                const emailData = new FormData();
-                emailData.append("Exam_Title", customTitle);
-                emailData.append("Attached_File", fileInput);
-                fetch("https://formspree.io/f/xojzzdaw", { method: "POST", body: emailData, headers: { 'Accept': 'application/json' } });
-            } catch (e) {}
-
-            statusText.style.color = "green";
-            statusText.innerText = "🎉 Success! Paper uploaded and live permanently!";
-            
-            document.getElementById("upload-custom-title").value = "";
-            document.getElementById("upload-file").value = "";
-            
-            setTimeout(() => {
-                loadAllPapers();
-                statusText.innerText = "";
-            }, 1500);
-
-        } catch (error) {
-            console.error("Database Error:", error);
-            statusText.style.color = "red";
-            statusText.innerText = "Upload failed. Please check file connection!";
-        } finally {
-            btn.innerText = "Upload & Go Live";
-            btn.disabled = false;
-        }
-    };
+        // Send to Google Sheets
+        return fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors", // bypass cross-origin restrictions smoothly
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    })
+    .then(() => {
+        statusText.style.color = "green";
+        statusText.innerText = "🎉 Success! Paper details recorded and live!";
+        
+        document.getElementById("upload-custom-title").value = "";
+        document.getElementById("upload-file").value = "";
+        
+        setTimeout(() => {
+            loadAllPapers();
+            statusText.innerText = "";
+        }, 1500);
+    })
+    .catch(error => {
+        console.error("Pipeline Error:", error);
+        statusText.style.color = "red";
+        statusText.innerText = "Upload failed. Please check connection!";
+    })
+    .finally(() => {
+        btn.innerText = "Upload & Go Live";
+        btn.disabled = false;
+    });
 }
