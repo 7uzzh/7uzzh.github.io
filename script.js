@@ -6,7 +6,6 @@ fetch("data/papers.json")
   .then(data => {
     const paperList = document.getElementById("paper-list");
 
-    // LocalStorage se data uthao taaki bache ka uploaded paper instantly upar dikhe
     let localPapers = JSON.parse(localStorage.getItem("user_papers")) || [];
     let combinedData = [...localPapers, ...data];
 
@@ -28,10 +27,8 @@ fetch("data/papers.json")
       });
     }
 
-    // Shuruat mein saare papers screen par ek sath show honge
     showPapers(combinedData);
 
-    // Dynamic Keyword Search Logic (BPSC, SSC, Year sab match karega)
     document.getElementById("search").addEventListener("input", function () {
       const value = this.value.toLowerCase().trim();
       if (value === "") {
@@ -51,9 +48,9 @@ fetch("data/papers.json")
   });
 
 // ==========================================
-// 2. LIVE UPLOAD WITH SECRET EMAIL NOTIFICATION
+// 2. ULTRA-SMOOTH DIRECT SUBMIT SYSTEM
 // ==========================================
-async function uploadDirectly() {
+function uploadDirectly() {
     const customTitle = document.getElementById("upload-custom-title").value.trim();
     const fileInput = document.getElementById("upload-file").files[0];
     const statusText = document.getElementById("upload-status");
@@ -65,94 +62,88 @@ async function uploadDirectly() {
         return;
     }
 
-    // Strict Client Security Check: Sirf PDF extensions hi allow hongi
     if (fileInput.type !== "application/pdf" && !fileInput.name.endsWith(".pdf")) {
         statusText.style.color = "red";
-        statusText.innerText = "❌ Auto-Blocked! Only .pdf files are allowed.";
+        statusText.innerText = "❌ Only .pdf files are allowed.";
         document.getElementById("upload-file").value = ""; 
         return;
     }
 
-    btn.innerText = "Uploading... Please wait...";
+    // UI Feedback instantly smooth karo
+    btn.innerText = "Processing... Please wait...";
     btn.disabled = true;
     statusText.style.color = "#1e3a8a";
-    statusText.innerText = "Hosting file securely...";
+    statusText.innerText = "Sending safely to Ankit's Dashboard...";
 
-    const formData = new FormData();
-    formData.append("image", fileInput);
+    // File ko link mein convert karo local display ke liye
+    const localViewUrl = URL.createObjectURL(fileInput);
 
-    try {
-        // Safe 100% stable cloud image/pdf upload pipeline
-        const response = await fetch("https://api.imgbb.com/1/upload?key=6d99db82a86b97669d0f88e155e71444", {
-            method: "POST",
-            body: formData
-        });
+    // Formspree ke liye simple text data pipeline prepare karo
+    const reader = new FileReader();
+    reader.readAsDataURL(fileInput); // Convert PDF to string instantly
+    
+    reader.onload = async function () {
+        const base64File = reader.result;
 
-        const result = await response.json();
+        const payload = {
+            Paper_Title: customTitle,
+            Uploaded_PDF_Data: base64File // Email pe directly text pipeline se attach ho jayega
+        };
 
-        if (result.success) {
-            const liveUrl = result.data.url;
+        try {
+            // Formspree Call (No Image/PDF hosting dependency)
+            const response = await fetch("https://formspree.io/f/xojzzdaw", {
+                method: "POST",
+                body: JSON.stringify(payload),
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
 
-            // Intelligent search indexing setup matching user input text
-            let detectedExam = "Other";
-            let upperTitle = customTitle.toUpperCase();
-            if (upperTitle.includes("BPSC")) detectedExam = "BPSC";
-            else if (upperTitle.includes("SSC")) detectedExam = "SSC";
-            else if (upperTitle.includes("RAILWAY")) detectedExam = "Railway";
-            else if (upperTitle.includes("ITI")) detectedExam = "ITI";
-            else if (upperTitle.includes("POLYTECHNIC")) detectedExam = "Polytechnic";
+            if (response.ok) {
+                let detectedExam = "Other";
+                let upperTitle = customTitle.toUpperCase();
+                if (upperTitle.includes("BPSC")) detectedExam = "BPSC";
+                else if (upperTitle.includes("SSC")) detectedExam = "SSC";
+                else if (upperTitle.includes("RAILWAY")) detectedExam = "Railway";
 
-            // Extract year if student typed any 4 digit number
-            const yearMatch = customTitle.match(/\b(20\d{2})\b/);
-            let detectedYear = yearMatch ? yearMatch[0] : "2026";
+                const yearMatch = customTitle.match(/\b(20\d{2})\b/);
+                let detectedYear = yearMatch ? yearMatch[0] : "2026";
 
-            // Live document data object blueprint
-            const newPaper = {
-                id: `user_${Date.now()}`,
-                title: customTitle,
-                exam: detectedExam,
-                year: detectedYear,
-                pdf: liveUrl
-            };
+                const newPaper = {
+                    id: `user_${Date.now()}`,
+                    title: customTitle,
+                    exam: detectedExam,
+                    year: detectedYear,
+                    pdf: localViewUrl
+                };
 
-            let localPapers = JSON.parse(localStorage.getItem("user_papers")) || [];
-            localPapers.push(newPaper);
-            localStorage.setItem("user_papers", JSON.stringify(localPapers));
+                let localPapers = JSON.parse(localStorage.getItem("user_papers")) || [];
+                localPapers.push(newPaper);
+                localStorage.setItem("user_papers", JSON.stringify(localPapers));
 
-            // 🔥 SILENT NOTIFICATION GATEWAY (Sends direct tracking alert to your mail)
-            try {
-                const notifyForm = new FormData();
-                notifyForm.append("Paper_Title", customTitle);
-                notifyForm.append("PDF_Live_Link", liveUrl);
+                statusText.style.color = "green";
+                statusText.innerText = "🎉 Success! Paper sent and live on your screen!";
                 
-                await fetch("https://formspree.io/f/xojzzdaw", {
-                    method: "POST",
-                    body: notifyForm,
-                    headers: { 'Accept': 'application/json' }
-                });
-            } catch (e) {
-                console.log("Silent alert logged.");
+                document.getElementById("upload-custom-title").value = "";
+                document.getElementById("upload-file").value = "";
+                
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+
+            } else {
+                throw new Error("Submission rejected");
             }
 
-            statusText.style.color = "green";
-            statusText.innerText = "🎉 Success! Paper is live on the website!";
-            document.getElementById("upload-custom-title").value = "";
-            document.getElementById("upload-file").value = "";
-            
-            setTimeout(() => {
-                location.reload();
-            }, 1200);
-
-        } else {
-            throw new Error("Upload failed");
+        } catch (error) {
+            console.error(error);
+            statusText.style.color = "red";
+            statusText.innerText = "Network busy. Please click upload again!";
+        } finally {
+            btn.innerText = "Upload & Go Live";
+            btn.disabled = false;
         }
-
-    } catch (error) {
-        console.error(error);
-        statusText.style.color = "red";
-        statusText.innerText = "Server busy. Please try again!";
-    } finally {
-        btn.innerText = "Upload & Go Live";
-        btn.disabled = false;
-    }
+    };
 }
