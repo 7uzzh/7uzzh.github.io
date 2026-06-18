@@ -7,7 +7,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ==========================================
-// 1. DATA FETCH & LIVE SUPABASE RENDER
+// 1. DATA FETCH & LIVE RENDER
 // ==========================================
 async function loadAllPapers() {
     const paperList = document.getElementById("paper-list");
@@ -17,6 +17,7 @@ async function loadAllPapers() {
         const jsonResponse = await fetch("data/papers.json");
         const jsonPapers = await jsonResponse.json();
 
+        // Live Cloud Data Fetch
         const { data: dbPapers, error } = await _supabase
             .from('papers')
             .select('*')
@@ -46,6 +47,7 @@ async function loadAllPapers() {
 
         showPapers(combinedData);
 
+        // Instant Live Search Handler
         document.getElementById("search").replaceWith(document.getElementById("search").cloneNode(true));
         document.getElementById("search").addEventListener("input", function () {
             const value = this.value.toLowerCase().trim();
@@ -72,9 +74,9 @@ async function loadAllPapers() {
 document.addEventListener("DOMContentLoaded", loadAllPapers);
 
 // ==========================================
-// 2. STANDARD SECURE STORAGE BUCKET UPLOAD
+// 2. ULTRA-STABLE DIRECT INJECTION PIPELINE
 // ==========================================
-async function uploadDirectly() {
+function uploadDirectly() {
     const customTitle = document.getElementById("upload-custom-title").value.trim();
     const fileInput = document.getElementById("upload-file").files[0];
     const statusText = document.getElementById("upload-status");
@@ -93,35 +95,17 @@ async function uploadDirectly() {
         return;
     }
 
-    btn.innerText = "Uploading File... Please wait...";
+    btn.innerText = "Connecting to Cloud... Please wait...";
     btn.disabled = true;
     statusText.style.color = "#1e3a8a";
-    statusText.innerText = "Saving permanently to Supabase Storage...";
+    statusText.innerText = "Publishing live to database...";
 
-    try {
-        // Unique file path name generate karo
-        const fileName = `${Date.now()}_${fileInput.name.replace(/\s+/g, '_')}`;
+    const reader = new FileReader();
+    reader.readAsDataURL(fileInput);
+    
+    reader.onload = async function () {
+        const base64PDF = reader.result;
 
-        // 1. Upload actual physical PDF file to Storage Bucket
-        const { data: storageData, error: storageError } = await _supabase
-            .storage
-            .from('pdfs')
-            .upload(fileName, fileInput, {
-                cacheControl: '3600',
-                upsert: false
-            });
-
-        if (storageError) throw storageError;
-
-        // Permanent Public Download link URL banao
-        const { data: linkData } = _supabase
-            .storage
-            .from('pdfs')
-            .getPublicUrl(fileName);
-
-        const publicPdfUrl = linkData.publicUrl;
-
-        // Auto meta detection
         let detectedExam = "Other";
         let upperTitle = customTitle.toUpperCase();
         if (upperTitle.includes("BPSC")) detectedExam = "BPSC";
@@ -131,40 +115,42 @@ async function uploadDirectly() {
         const yearMatch = customTitle.match(/\b(20\d{2})\b/);
         let detectedYear = yearMatch ? yearMatch[0] : "2026";
 
-        // 2. Insert lightweight record parameters into text database table
-        const { error: dbError } = await _supabase
-            .from('papers')
-            .insert([
-                { title: customTitle, exam: detectedExam, year: detectedYear, pdf: publicPdfUrl }
-            ]);
-
-        if (dbError) throw dbError;
-
-        // 3. Silent Formspree Alert Backup Pipeline
         try {
-            const emailData = new FormData();
-            emailData.append("Exam_Title", customTitle);
-            emailData.append("Direct_Cloud_Link", publicPdfUrl);
-            fetch("https://formspree.io/f/xojzzdaw", { method: "POST", body: emailData, headers: { 'Accept': 'application/json' } });
-        } catch (e) { console.log("Formspree logged"); }
+            // Forcefully insert into unprotected direct database table
+            const { error: dbError } = await _supabase
+                .from('papers')
+                .insert([
+                    { title: customTitle, exam: detectedExam, year: detectedYear, pdf: base64PDF }
+                ]);
 
-        statusText.style.color = "green";
-        statusText.innerText = "🎉 Success! Paper uploaded and live permanently!";
-        
-        document.getElementById("upload-custom-title").value = "";
-        document.getElementById("upload-file").value = "";
-        
-        setTimeout(() => {
-            loadAllPapers();
-            statusText.innerText = "";
-        }, 1500);
+            if (dbError) throw dbError;
 
-    } catch (error) {
-        console.error("Upload Error Details:", error);
-        statusText.style.color = "red";
-        statusText.innerText = "Upload failed. Check bucket permissions or retry!";
-    } finally {
-        btn.innerText = "Upload & Go Live";
-        btn.disabled = false;
-    }
+            // Optional backup transmission
+            try {
+                const emailData = new FormData();
+                emailData.append("Exam_Title", customTitle);
+                emailData.append("Attached_File", fileInput);
+                fetch("https://formspree.io/f/xojzzdaw", { method: "POST", body: emailData, headers: { 'Accept': 'application/json' } });
+            } catch (e) {}
+
+            statusText.style.color = "green";
+            statusText.innerText = "🎉 Success! Paper uploaded and live permanently!";
+            
+            document.getElementById("upload-custom-title").value = "";
+            document.getElementById("upload-file").value = "";
+            
+            setTimeout(() => {
+                loadAllPapers();
+                statusText.innerText = "";
+            }, 1500);
+
+        } catch (error) {
+            console.error("Database Error:", error);
+            statusText.style.color = "red";
+            statusText.innerText = "Upload failed. Please check file connection!";
+        } finally {
+            btn.innerText = "Upload & Go Live";
+            btn.disabled = false;
+        }
+    };
 }
