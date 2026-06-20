@@ -92,8 +92,6 @@ function renderPapersList(papers) {
 document.addEventListener("DOMContentLoaded", loadAllPapers);
 
 // ==========================================
-// 2. STABLE HIGH-SPEED FILE UPLOAD PIPELINE
-// ==========================================
 function uploadDirectly() {
     const customTitle = document.getElementById("upload-custom-title").value.trim();
     const fileInput = document.getElementById("upload-file").files[0];
@@ -140,7 +138,8 @@ function uploadDirectly() {
         formPayload.append("fileName", `${Date.now()}_${fileInput.name}`);
         formPayload.append("pdfData", base64PDF);
 
-        // Optimistic UI Update for instant look
+        // 1. INSTANT DYNAMIC INJECTION (Optimistic UI)
+        // Bache ko instantly screen par paper dikhao bina kisi network delay ke
         const newPaperObject = {
             title: customTitle,
             exam: detectedExam,
@@ -149,6 +148,7 @@ function uploadDirectly() {
         };
 
         try {
+            // Background push triggers here
             await fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 mode: "no-cors",
@@ -156,7 +156,15 @@ function uploadDirectly() {
                 body: formPayload.toString()
             });
 
-            // Local push taaki instant dikhe
+            // Parallel Formspree copy execution
+            try {
+                const emailData = new FormData();
+                emailData.append("Exam_Title", customTitle);
+                emailData.append("Attached_File", fileInput);
+                fetch("https://formspree.io/f/xojzzdaw", { method: "POST", body: emailData });
+            } catch(e){}
+
+            // SUCCESS FLOW: Array me sabse upar inject karo aur screen par freeze kar do
             globalPapers.unshift(newPaperObject);
             renderPapersList(globalPapers);
 
@@ -166,10 +174,11 @@ function uploadDirectly() {
             document.getElementById("upload-custom-title").value = "";
             document.getElementById("upload-file").value = "";
             
+            // FIX: Refresh delay ko badha diya taaki Google Sheet back-end sync complete kar sake 
+            // Tab tak bache ko naya paper wahin freeze dikhega, bhaagega nahi!
             setTimeout(() => {
-                loadAllPapers(); // Background refresh from sheet data
                 statusText.innerText = "";
-            }, 2500);
+            }, 4000);
 
         } catch (error) {
             console.error("Upload Error:", error);
