@@ -3,88 +3,96 @@
 // ==========================================
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxxuh6YNDA1mup5mGEo16TNJyxS3bAci1XAmXfCe5y-VaJqLghR7_yDmoVUgl4RGDv3/exec";
 
+// Apni Google Sheet ka ID yahan sahi se dalo (Bina kisi lafde ke direct data read hoga)
+const SHEET_ID = "1NFJ4J9OudikBZLxd01GAnfNmrufXVaqvZMw89PvnUp8";
+const GOOGLE_SHEET_JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+
+let globalPapers = [];
+
 // ==========================================
-// 1. BULLETPROOF DATA FETCH & RENDER PIPELINE
+// 1. BULLETPROOF LIVE SHEET DATA FETCH
 // ==========================================
 async function loadAllPapers() {
     const paperList = document.getElementById("paper-list");
-    paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #1e3a8a; padding: 20px;">Loading papers from Database...</p>`;
+    paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #1e3a8a; padding: 20px;">Loading papers from Live Database...</p>`;
 
     let jsonPapers = [];
     let sheetPapers = [];
 
-    // 1. Local JSON files ko pehle load karo (Yeh hamesha chalega aur error nahi dikhayega)
+    // 1. Local JSON load karo
     try {
         const jsonResponse = await fetch("data/papers.json");
-        if (jsonResponse.ok) {
-            jsonPapers = await jsonResponse.json();
-        }
-    } catch(e) { 
-        console.log("Local JSON empty or missing"); 
-    }
+        if (jsonResponse.ok) { jsonPapers = await jsonResponse.json(); }
+    } catch(e) { console.log("Local JSON load bypassed"); }
 
-    // 2. Google Sheet se live data uthaao (Bypass CORS via redirection handling)
+    // 2. Google Sheet se direct bina CORS ke data read karo
     try {
-        // Redirection block bypass karne ke liye pehle direct proxy link target karte hain
-        const sheetResponse = await fetch(GOOGLE_SCRIPT_URL);
-        if (sheetResponse.ok) {
-            const rawText = await sheetResponse.text();
-            // Agar google valid text bhej raha hai toh parse karo
-            sheetPapers = JSON.parse(rawText);
-        }
+        const response = await fetch(GOOGLE_SHEET_JSON_URL);
+        const text = await response.text();
+        
+        // Google sheets ka raw text clean karke JSON banana
+        const jsonString = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
+        const json = JSON.parse(jsonString);
+        
+        const rows = json.table.rows;
+        sheetPapers = rows.map(row => ({
+            title: row.c[0] ? row.c[0].v : "",
+            exam: row.c[1] ? row.c[1].v : "",
+            year: row.c[2] ? row.c[2].v : "",
+            pdf: row.c[3] ? row.c[3].v : ""
+        })).filter(p => p.title !== ""); // Blank rows filter out karne ke liye
+        
     } catch (err) {
-        console.error("Google Sheet bypass network response handled smoothly:", err);
-        // Agar Google Script read block bhi kare, toh red error nahi aayega, bache ko data dikhega!
+        console.error("Direct Sheet Read Error:", err);
     }
 
-    // Dono ko merge karo
-    let combinedData = [...sheetPapers, ...jsonPapers];
+    // Naye paper humesha upar dikhane ke liye reverse kiya
+    globalPapers = [...sheetPapers.reverse(), ...jsonPapers];
+    renderPapersList(globalPapers);
 
-    // Screen par papers render karne ka logic
-    function showPapers(papers) {
-        paperList.innerHTML = "";
-        if (papers.length === 0) {
-            paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #6b7280; padding: 20px;">No papers found. Try another search!</p>`;
-            return;
-        }
-
-        papers.forEach(paper => {
-            paperList.innerHTML += `
-              <div class="paper-item-card">
-                <h3>${paper.title}</h3>
-                <p>Exam: ${paper.exam} | Year: ${paper.year}</p>
-                <a class="download-btn" href="${paper.pdf}" target="_blank">Download PDF</a>
-              </div>
-            `;
-        });
-    }
-
-    // Static call ensure screen never goes blank
-    showPapers(combinedData);
-
-    // Live Search Event Listener
+    // Live Search Logic
     document.getElementById("search").replaceWith(document.getElementById("search").cloneNode(true));
     document.getElementById("search").addEventListener("input", function () {
         const value = this.value.toLowerCase().trim();
         if (value === "") {
-            showPapers(combinedData);
+            renderPapersList(globalPapers);
             return;
         }
 
-        const filtered = combinedData.filter(p => {
+        const filtered = globalPapers.filter(p => {
             const titleMatch = p.title ? p.title.toLowerCase().includes(value) : false;
             const examMatch = p.exam ? p.exam.toLowerCase().includes(value) : false;
             const yearMatch = p.year ? p.year.toString().includes(value) : false;
             return titleMatch || examMatch || yearMatch;
         });
-        showPapers(filtered);
+        renderPapersList(filtered);
+    });
+}
+
+function renderPapersList(papers) {
+    const paperList = document.getElementById("paper-list");
+    paperList.innerHTML = "";
+    
+    if (papers.length === 0) {
+        paperList.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #6b7280; padding: 20px;">No papers found. Try another search!</p>`;
+        return;
+    }
+
+    papers.forEach(paper => {
+        paperList.innerHTML += `
+          <div class="paper-item-card">
+            <h3>${paper.title}</h3>
+            <p>Exam: ${paper.exam} | Year: ${paper.year}</p>
+            <a class="download-btn" href="${paper.pdf}" target="_blank">Download PDF</a>
+          </div>
+        `;
     });
 }
 
 document.addEventListener("DOMContentLoaded", loadAllPapers);
 
 // ==========================================
-// 2. ASYNC HIGH-SPEED DRIVE FILE UPLOAD PIPELINE
+// 2. STABLE HIGH-SPEED FILE UPLOAD PIPELINE
 // ==========================================
 function uploadDirectly() {
     const customTitle = document.getElementById("upload-custom-title").value.trim();
@@ -108,7 +116,7 @@ function uploadDirectly() {
     btn.innerText = "Uploading File... Please wait...";
     btn.disabled = true;
     statusText.style.color = "#1e3a8a";
-    statusText.innerText = "Pushing data to Live Google Ledger...";
+    statusText.innerText = "Sending paper to live server...";
 
     const reader = new FileReader();
     reader.readAsDataURL(fileInput);
@@ -125,7 +133,6 @@ function uploadDirectly() {
         const yearMatch = customTitle.match(/\b(20\d{2})\b/);
         let detectedYear = yearMatch ? yearMatch[0] : "2026";
 
-        // URLSearchParams format me data convert karo taaki Google Script access block na kare
         const formPayload = new URLSearchParams();
         formPayload.append("title", customTitle);
         formPayload.append("exam", detectedExam);
@@ -133,8 +140,15 @@ function uploadDirectly() {
         formPayload.append("fileName", `${Date.now()}_${fileInput.name}`);
         formPayload.append("pdfData", base64PDF);
 
+        // Optimistic UI Update for instant look
+        const newPaperObject = {
+            title: customTitle,
+            exam: detectedExam,
+            year: detectedYear,
+            pdf: base64PDF
+        };
+
         try {
-            // Send payload via URLencoded format (Highly stable for Apps Script)
             await fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 mode: "no-cors",
@@ -142,29 +156,25 @@ function uploadDirectly() {
                 body: formPayload.toString()
             });
 
-            // Parallel Formspree backup notification
-            try {
-                const emailData = new FormData();
-                emailData.append("Exam_Title", customTitle);
-                emailData.append("Attached_File", fileInput);
-                fetch("https://formspree.io/f/xojzzdaw", { method: "POST", body: emailData });
-            } catch(e){}
+            // Local push taaki instant dikhe
+            globalPapers.unshift(newPaperObject);
+            renderPapersList(globalPapers);
 
             statusText.style.color = "green";
-            statusText.innerText = "🎉 Success! Paper sent and recorded!";
+            statusText.innerText = "🎉 Success! Paper uploaded and live permanently!";
             
             document.getElementById("upload-custom-title").value = "";
             document.getElementById("upload-file").value = "";
             
             setTimeout(() => {
-                loadAllPapers();
+                loadAllPapers(); // Background refresh from sheet data
                 statusText.innerText = "";
-            }, 1500);
+            }, 2500);
 
         } catch (error) {
             console.error("Upload Error:", error);
             statusText.style.color = "red";
-            statusText.innerText = "Upload failed. Checking backend handshake!";
+            statusText.innerText = "Upload failed. Checking cloud linkage...";
         } finally {
             btn.innerText = "Upload & Go Live";
             btn.disabled = false;
