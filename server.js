@@ -101,6 +101,28 @@ app.post('/api/upload', (req, res) => {
     }
 });
 
+
+// Admin Verify API Endpoint
+app.post('/api/verify', (req, res) => {
+    try {
+        const { password } = req.body;
+        const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+        if (!password) {
+            return res.status(400).json({ success: false, message: 'Missing password parameter.' });
+        }
+
+        if (password !== ADMIN_PASSWORD) {
+            return res.status(401).json({ success: false, message: 'Invalid admin password.' });
+        }
+
+        res.json({ success: true, message: 'Password verified successfully.' });
+    } catch (error) {
+        console.error('Verification error:', error);
+        res.status(500).json({ success: false, message: 'Internal server error during verification.' });
+    }
+});
+
 // Admin Delete API Endpoint
 app.post('/api/delete', (req, res) => {
     try {
