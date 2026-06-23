@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import datetime
 
 papers = []
 
@@ -39,6 +40,11 @@ papers = []
 for file in os.listdir("uploads"):
     if file.endswith(".pdf"):
         name, exam, year = extract_info(file)
+        
+        # Calculate modification time for uploadedAt
+        pdf_path = f"uploads/{file}"
+        mtime = os.path.getmtime(pdf_path)
+        uploaded_at = datetime.datetime.utcfromtimestamp(mtime).isoformat() + "Z"
 
         papers.append({
             "id": name.lower().replace(" ", "-"),
@@ -46,7 +52,8 @@ for file in os.listdir("uploads"):
             "exam": exam,
             "year": year,
             "keywords": name.lower().split("-"),
-            "pdf": f"uploads/{file}"
+            "pdf": pdf_path,
+            "uploadedAt": uploaded_at
         })
 
 with open("data/papers.json", "w") as f:

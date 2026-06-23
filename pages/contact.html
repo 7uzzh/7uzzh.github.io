@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us - PYQHub</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+    <!-- Header Navbar -->
+    <nav class="navbar">
+        <a href="../index.html" class="nav-logo">⚡ PYQHub</a>
+        <ul class="nav-links">
+            <li><a href="../index.html">Home</a></li>
+            <li><a href="about.html">About</a></li>
+            <li><a href="contact.html" class="active">Contact</a></li>
+            <li><a href="privacy-policy.html">Privacy</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="subpage-container">
+        <h1 class="subpage-title">Contact Us</h1>
+        
+        <div class="glass-card subpage-card">
+            <h2>Get in Touch</h2>
+            <p>
+                Have suggestions for features, need support, or noticed any incorrect/copyright-infringing question papers? Drop us a message using the form below, and we will get back to you as soon as possible.
+            </p>
+
+            <form class="contact-form" onsubmit="event.preventDefault(); alert('Thank you! Your message has been sent successfully.'); this.reset();">
+                <div class="form-group">
+                    <label for="contact-name">Name:</label>
+                    <input type="text" id="contact-name" class="form-control" placeholder="Your Full Name" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="contact-email">Email:</label>
+                    <input type="email" id="contact-email" class="form-control" placeholder="Your Email Address" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="contact-subject">Subject:</label>
+                    <input type="text" id="contact-subject" class="form-control" placeholder="e.g. Paper feedback / Copyright Issue / Feature Request" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="contact-message">Message:</label>
+                    <textarea id="contact-message" class="form-control" rows="5" placeholder="Type your message here..." style="resize: vertical; font-family: var(--font-main);" required></textarea>
+                </div>
+
+                <button type="submit" class="contact-btn">Send Message</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer Section -->
+    <footer class="site-footer">
+        <p>&copy; 2026 PYQHub. All Rights Reserved. Built for Students.</p>
+        <ul class="footer-links">
+            <li><a href="about.html">About Us</a></li>
+            <li><a href="contact.html">Contact Us</a></li>
+            <li><a href="privacy-policy.html">Privacy Policy</a></li>
+            <li><a href="admin.html">Admin Portal</a></li>
+        </ul>
+    </footer>
+
+</body>
+</html>

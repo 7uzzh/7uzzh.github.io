@@ -1,5 +1,6 @@
 import os
 import json
+import datetime
 
 # Paths setup
 JSON_PATH = "data/papers.json"
@@ -44,6 +45,10 @@ for file in os.listdir(UPLOADS_DIR):
             # Keywords auto-generate karo
             keywords = [word.lower() for word in clean_title.split() if len(word) > 1]
             
+            # File modification time for uploadedAt
+            mtime = os.path.getmtime(pdf_path)
+            uploaded_at = datetime.datetime.utcfromtimestamp(mtime).isoformat() + "Z"
+
             # Naya paper object
             new_item = {
                 "id": os.path.splitext(file)[0].lower(),
@@ -51,7 +56,8 @@ for file in os.listdir(UPLOADS_DIR):
                 "exam": exam_type,
                 "year": "2026", # By default current year, baad mein change kar sakte ho
                 "keywords": keywords,
-                "pdf": pdf_path
+                "pdf": pdf_path,
+                "uploadedAt": uploaded_at
             }
             
             database.append(new_item)

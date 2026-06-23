@@ -1,77 +1,152 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="google-site-verification" content="KTkWXPNW9EHUCLfHgX0H9hQhlyyl4-7wDWXd-Ga39G0" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PYQHub - Previous Year Question Papers</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="google-site-verification" content="KTkWXPNW9EHUCLfHgX0H9hQhlyyl4-7wDWXd-Ga39G0" />
+    <!-- Google AdSense Placeholder (Apni Publisher ID ca-pub-XXXXXX yahan dalen) -->
+    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YAHAN_APNI_PUB_ID_DALO" crossorigin="anonymous"></script> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PYQHub - Previous Year Question Papers</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
-<header>
-    <h1>PYQHub</h1>
-    <p>Previous Year Question Papers, Notes & Exam Resources</p>
-</header>
+    <!-- Header Navbar -->
+    <nav class="navbar">
+        <a href="index.html" class="nav-logo">⚡ PYQHub</a>
+        <ul class="nav-links">
+            <li><a href="index.html" class="active">Home</a></li>
+            <li><a href="pages/about.html">About</a></li>
+            <li><a href="pages/contact.html">Contact</a></li>
+            <li><a href="pages/privacy-policy.html">Privacy</a></li>
+        </ul>
+    </nav>
 
-<div class="hero">
-    <h2>Find Previous Year Question Papers Instantly</h2>
-    <input type="text" id="search" placeholder="Search BPSC, SSC, Railway, AKU, PPU...">
-    <div id="paper-list" class="paper-results-container"></div>
-</div>
+    <!-- Main Content Container -->
+    <div class="container">
+        
+        <!-- Hero Search Section -->
+        <section class="hero">
+            <h1 class="hero-title">Find Previous Year Question Papers Instantly</h1>
+            <p class="hero-subtitle">India's modern search portal for BPSC, SSC, Railway, University, ITI, and Polytechnic papers.</p>
+            <div class="search-wrapper">
+                <input type="text" id="search" placeholder="Search BPSC, SSC, Railway, AKU, PPU...">
+            </div>
+        </section>
 
-<div style="background: white; max-width: 500px; margin: 30px auto; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: left; border-top: 4px solid #10b981;">
-    <h3 style="color: #1e3a8a; margin-top: 0; text-align: center;">📤 Instant Paper Upload</h3>
-    <p style="color: #64748b; font-size: 14px; text-align: center;">Type exam details, select PDF, and go live instantly!</p>
-    
-    <div style="display: flex; flex-direction: column; gap: 15px;">
-        <div>
-            <label style="display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px;">Exam Name / Details:</label>
-            <input type="text" id="upload-custom-title" placeholder="e.g. BPSC 68th Mains Polity / AKU 3rd Sem" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box;">
+        <!-- Stats Dashboard Grid -->
+        <div class="stats-grid">
+            <div class="glass-card stat-item">
+                <div id="stat-total-papers" class="stat-value">-</div>
+                <div class="stat-label">Total Papers</div>
+            </div>
+            <div class="glass-card stat-item">
+                <div id="stat-categories" class="stat-value">-</div>
+                <div class="stat-label">Unique Exams</div>
+            </div>
+            <div class="glass-card stat-item">
+                <div id="stat-latest-paper" class="stat-value" style="font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 5px 0;">None</div>
+                <div class="stat-label">Latest Upload</div>
+            </div>
         </div>
 
-        <div>
-            <label style="display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px;">Select PDF File:</label>
-            <input type="file" id="upload-file" accept=".pdf" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; box-sizing: border-box;">
-            <small style="color: #64748b; font-size: 11px; display: block; margin-top: 4px;">⚠️ Sirf .pdf file allowed hai (Photos/Aadhaar auto-block ho jayenge)</small>
+        <!-- Collapsable Upload Accordion -->
+        <div class="upload-accordion">
+            <button id="toggle-upload-btn" class="accordion-trigger">
+                <span>📤 Upload a Question Paper</span>
+                <span class="chevron">▼</span>
+            </button>
+            <div id="upload-content" class="upload-content">
+                <div class="glass-card upload-card">
+                    <h3>📤 Instant Paper Upload</h3>
+                    <p>Type exam details, select PDF, and go live instantly!</p>
+                    
+                    <div class="form-group">
+                        <label for="upload-custom-title">Exam Name / Details:</label>
+                        <input type="text" id="upload-custom-title" class="form-control" placeholder="e.g. BPSC 68th Mains Polity / AKU 3rd Sem">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Select PDF File:</label>
+                        <div class="file-upload-wrapper" id="drop-zone">
+                            <div class="file-upload-icon">📄</div>
+                            <div class="file-upload-text">Drag & drop your PDF here, or <span>browse</span></div>
+                            <input type="file" id="upload-file" accept=".pdf">
+                        </div>
+                        <small style="color: var(--text-secondary); font-size: 11px; display: block; margin-top: 6px;">
+                            ⚠️ Only .pdf files are allowed. (Images or non-PDF formats are auto-blocked).
+                        </small>
+                    </div>
+
+                    <button onclick="uploadDirectly()" id="upload-btn" class="upload-btn">
+                        Upload & Go Live
+                    </button>
+                    <p id="upload-status" style="text-align: center; font-size: 14px; font-weight: bold; margin: 0;"></p>
+                </div>
+            </div>
         </div>
 
-        <button onclick="uploadDirectly()" id="upload-btn" style="background: #10b981; color: white; border: none; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 10px; width: 100%;">
-            Upload & Go Live
-        </button>
-        <p id="upload-status" style="text-align: center; font-size: 14px; font-weight: bold; margin: 0;"></p>
+        <!-- Quick Categories Selection -->
+        <div class="categories">
+            <div class="glass-card category-card" onclick="setSearch('BPSC')">BPSC</div>
+            <div class="glass-card category-card" onclick="setSearch('SSC')">SSC</div>
+            <div class="glass-card category-card" onclick="setSearch('Railway')">Railway</div>
+            <div class="glass-card category-card" onclick="setSearch('University')">University Papers</div>
+            <div class="glass-card category-card" onclick="setSearch('ITI')">ITI</div>
+            <div class="glass-card category-card" onclick="setSearch('Polytechnic')">Polytechnic</div>
+        </div>
+
+        <!-- Search Controls & Sorting Bar -->
+        <div class="search-controls">
+            <div id="search-status" class="search-status">Found 0 papers</div>
+            <div class="sort-wrapper">
+                <label for="sort-select">Sort By:</label>
+                <select id="sort-select" class="sort-select">
+                    <option value="latest">Latest Added</option>
+                    <option value="year-desc">Year (Newest)</option>
+                    <option value="year-asc">Year (Oldest)</option>
+                    <option value="alpha-asc">Title (A-Z)</option>
+                    <option value="alpha-desc">Title (Z-A)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Dynamic Results Grid -->
+        <div id="paper-list" class="paper-results-container"></div>
+
     </div>
-</div>
 
-<div class="categories">
-    <div class="card" onclick="setSearch('BPSC')">BPSC</div>
-    <div class="card" onclick="setSearch('SSC')">SSC</div>
-    <div class="card" onclick="setSearch('Railway')">Railway</div>
-    <div class="card" onclick="setSearch('University Papers')">University Papers</div>
-    <div class="card" onclick="setSearch('ITI')">ITI</div>
-    <div class="card" onclick="setSearch('Polytechnic')">Polytechnic</div>
-</div>
+    <!-- Footer Section -->
+    <footer class="site-footer">
+        <p>&copy; 2026 PYQHub. All Rights Reserved. Built for Students.</p>
+        <ul class="footer-links">
+            <li><a href="pages/about.html">About Us</a></li>
+            <li><a href="pages/contact.html">Contact Us</a></li>
+            <li><a href="pages/privacy-policy.html">Privacy Policy</a></li>
+            <li><a href="pages/admin.html">Admin Portal</a></li>
+        </ul>
+    </footer>
 
-<footer style="background:#1e3a8a; color:white; text-align:center; padding:20px; margin-top:40px; font-size:14px;">
-    <p>&copy; 2026 PYQHub. All Rights Reserved.</p>
-    <div style="margin-top:10px;">
-        <a href="pages/about.html" style="color:#cbd5e1; text-decoration:none; margin:0 10px;">About Us</a> | 
-        <a href="pages/contact.html" style="color:#cbd5e1; text-decoration:none; margin:0 10px;">Contact Us</a> | 
-        <a href="pages/privacy-policy.html" style="color:#cbd5e1; text-decoration:none; margin:0 10px;">Privacy Policy</a>
-    </div>
-</footer>
+    <script src="script.js"></script>
+    <script>
+        // Category box click helper
+        function setSearch(val) {
+            const searchInput = document.getElementById('search');
+            searchInput.value = val;
+            
+            // Toggle active styling on clicked pill
+            const pills = document.querySelectorAll('.category-card');
+            pills.forEach(pill => {
+                if (pill.innerText.toLowerCase().includes(val.toLowerCase())) {
+                    pill.classList.add('active');
+                } else {
+                    pill.classList.remove('active');
+                }
+            });
 
-<script src="script.js"></script>
-<script>
-    // Category box click helper
-    function setSearch(val) {
-        const searchInput = document.getElementById('search');
-        searchInput.value = val;
-        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-        window.scrollTo({ top: 150, behavior: 'smooth' });
-    }
-</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            window.scrollTo({ top: 180, behavior: 'smooth' });
+        }
+    </script>
 </body>
 </html>
