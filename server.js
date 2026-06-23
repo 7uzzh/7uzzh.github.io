@@ -6,6 +6,9 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Global Admin Password configuration (Fallback: Admin123@)
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin123@';
+
 // Enable CORS
 app.use(cors());
 
@@ -70,7 +73,7 @@ app.post('/api/upload', (req, res) => {
 
         const cleanTitle = title.trim();
         const paperId = safeFileName.replace(/\.pdf$/i, '').toLowerCase();
-        
+
         // Auto-generate keywords
         const keywords = cleanTitle.toLowerCase()
             .replace(/[-_]/g, ' ')
@@ -106,7 +109,6 @@ app.post('/api/upload', (req, res) => {
 app.post('/api/verify', (req, res) => {
     try {
         const { password } = req.body;
-        const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
         if (!password) {
             return res.status(400).json({ success: false, message: 'Missing password parameter.' });
@@ -127,7 +129,6 @@ app.post('/api/verify', (req, res) => {
 app.post('/api/delete', (req, res) => {
     try {
         const { id, password } = req.body;
-        const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
         if (!id || !password) {
             return res.status(400).json({ success: false, message: 'Missing required parameters.' });
