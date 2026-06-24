@@ -3,4 +3,4 @@ Allow: /
 Disallow: /pages/admin.html
 Disallow: /uploads/
 
-Sitemap: https://7uzzh.github.io/PYQHub/sitemap.xml
+Sitemap: https://7uzzh.github.io/sitemap.xml
