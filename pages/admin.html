@@ -79,6 +79,9 @@
     </footer>
 
     <script>
+        // Paste your Google Apps Script Web App URL here after deployment
+        const GOOGLE_SCRIPT_URL = "YAHAN_APNI_GOOGLE_SCRIPT_URL_DALO";
+
         const RENDER_BACKEND_URL = "https://pyq-backend.onrender.com";
         const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
             ? '' 
@@ -110,11 +113,25 @@
 
         async function verifyPassword(password) {
             try {
-                const res = await fetch(`${BACKEND_URL}/api/verify`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
-                });
+                let fetchUrl;
+                let options;
+                
+                if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== "YAHAN_APNI_GOOGLE_SCRIPT_URL_DALO" && GOOGLE_SCRIPT_URL.startsWith("https://script.google.com")) {
+                    fetchUrl = GOOGLE_SCRIPT_URL;
+                    options = {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'verify', password })
+                    };
+                } else {
+                    fetchUrl = `${BACKEND_URL}/api/verify`;
+                    options = {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password })
+                    };
+                }
+                
+                const res = await fetch(fetchUrl, options);
                 const result = await res.json();
                 return res.ok && result.success;
             } catch (e) {
@@ -171,12 +188,17 @@
             const password = sessionStorage.getItem('adminPassword');
             
             try {
-                const fetchUrl = BACKEND_URL 
-                    ? `${BACKEND_URL}/api/papers?t=${Date.now()}` 
-                    : `/api/papers?t=${Date.now()}`;
-                let res = await fetch(fetchUrl);
-                if (!res.ok && !BACKEND_URL) {
-                    res = await fetch(`../data/papers.json?t=${Date.now()}`);
+                let res;
+                if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== "YAHAN_APNI_GOOGLE_SCRIPT_URL_DALO" && GOOGLE_SCRIPT_URL.startsWith("https://script.google.com")) {
+                    res = await fetch(`${GOOGLE_SCRIPT_URL}?t=${Date.now()}`);
+                } else {
+                    const fetchUrl = BACKEND_URL 
+                        ? `${BACKEND_URL}/api/papers?t=${Date.now()}` 
+                        : `/api/papers?t=${Date.now()}`;
+                    res = await fetch(fetchUrl);
+                    if (!res.ok && !BACKEND_URL) {
+                        res = await fetch(`../data/papers.json?t=${Date.now()}`);
+                    }
                 }
                 if (!res.ok) throw new Error();
                 const papers = await res.json();
@@ -225,19 +247,32 @@
             }
             
             try {
-                const response = await fetch(`${BACKEND_URL}/api/delete`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ id, password })
-                });
+                let fetchUrl;
+                let options;
                 
+                if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== "YAHAN_APNI_GOOGLE_SCRIPT_URL_DALO" && GOOGLE_SCRIPT_URL.startsWith("https://script.google.com")) {
+                    fetchUrl = GOOGLE_SCRIPT_URL;
+                    options = {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'delete', id, password })
+                    };
+                } else {
+                    fetchUrl = `${BACKEND_URL}/api/delete`;
+                    options = {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ id, password })
+                    };
+                }
+                
+                const response = await fetch(fetchUrl, options);
                 const result = await response.json();
                 
                 if (!response.ok || !result.success) {
-                    alert(`Error: ${result.message || 'Deletion failed.'}`);
-                    if (response.status === 401) {
+                    alert(`Error: ${result.message || result.error || 'Deletion failed.'}`);
+                    if (response.status === 401 || result.message === "Invalid admin password") {
                         logoutAdmin();
                     }
                 } else {
@@ -246,7 +281,7 @@
                 }
             } catch (err) {
                 console.error(err);
-                alert('Failed to contact backend server. Make sure node server is running!');
+                alert('Failed to contact backend server. Make sure server is running!');
             }
         }
     </script>

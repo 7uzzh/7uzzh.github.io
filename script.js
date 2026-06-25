@@ -1,10 +1,11 @@
 // ==========================================
 // 0. BACKEND & GOOGLE SHEETS CONFIGURATION
 // ==========================================
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxxuh6YNDA1mup5mGEo16TNJyxS3bAci1XAmXfCe5y-VaJqLghR7_yDmoVUgl4RGDv3/exec";
+// Paste your Google Apps Script Web App URL here after deployment (e.g. https://script.google.com/macros/s/.../exec)
+const GOOGLE_SCRIPT_URL = "YAHAN_APNI_GOOGLE_SCRIPT_URL_DALO";
 const SHEET_ID = "YAHAN_APNI_SHEET_KA_ID_DALO";
 
-// Render Backend configuration. Replace this link with your live Render URL once deployed.
+// Render Backend configuration (Fallback / Alternative backend)
 const RENDER_BACKEND_URL = "https://pyq-backend.onrender.com";
 
 const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
@@ -23,21 +24,29 @@ async function loadAllPapers() {
     let jsonPapers = [];
     let sheetPapers = [];
 
-    // 1. Fetch from database with cache-buster (Try API endpoint first, fallback to static JSON)
+    // 1. Fetch from database with cache-buster (Try Google Apps Script first, then local API, then static JSON)
     try {
-        const fetchUrl = BACKEND_URL 
-            ? `${BACKEND_URL}/api/papers?t=${Date.now()}` 
-            : `/api/papers?t=${Date.now()}`;
-        let jsonResponse = await fetch(fetchUrl);
-        if (!jsonResponse.ok && !BACKEND_URL) {
-            // Local fallback: try serving static data/papers.json if local server is not running
-            jsonResponse = await fetch(`data/papers.json?t=${Date.now()}`);
+        let jsonResponse;
+        if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== "YAHAN_APNI_GOOGLE_SCRIPT_URL_DALO" && GOOGLE_SCRIPT_URL.startsWith("https://script.google.com")) {
+            jsonResponse = await fetch(`${GOOGLE_SCRIPT_URL}?t=${Date.now()}`);
+        } else {
+            const fetchUrl = BACKEND_URL 
+                ? `${BACKEND_URL}/api/papers?t=${Date.now()}` 
+                : `/api/papers?t=${Date.now()}`;
+            jsonResponse = await fetch(fetchUrl);
+            if (!jsonResponse.ok && !BACKEND_URL) {
+                // Local fallback: try serving static data/papers.json if local server is not running
+                jsonResponse = await fetch(`data/papers.json?t=${Date.now()}`);
+            }
         }
+        
         if (jsonResponse.ok) { 
             jsonPapers = await jsonResponse.json(); 
+        } else {
+            throw new Error(`HTTP error ${jsonResponse.status}`);
         }
     } catch(e) { 
-        console.log("API fetch failed, attempting static file fallback:", e); 
+        console.log("Primary fetch failed, attempting static file fallback:", e); 
         try {
             const fallbackResponse = await fetch(`data/papers.json?t=${Date.now()}`);
             if (fallbackResponse.ok) {
@@ -251,6 +260,7 @@ function uploadDirectly() {
 
         // JSON formatting metadata template package
         const jsonPayload = {
+            action: "upload", // Action identifier for Google Apps Script
             title: customTitle,
             exam: detectedExam,
             year: detectedYear,
@@ -258,18 +268,30 @@ function uploadDirectly() {
             pdfData: base64PDF
         };
 
-
-
         try {
-            const response = await fetch(`${BACKEND_URL}/api/upload`, {
-                method: "POST",
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(jsonPayload)
-            });
+            let uploadUrl;
+            let options;
+            
+            if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== "YAHAN_APNI_GOOGLE_SCRIPT_URL_DALO" && GOOGLE_SCRIPT_URL.startsWith("https://script.google.com")) {
+                uploadUrl = GOOGLE_SCRIPT_URL;
+                // Google Apps Script requires a simple POST (no JSON headers) to avoid CORS preflight options blocks
+                options = {
+                    method: "POST",
+                    body: JSON.stringify(jsonPayload)
+                };
+            } else {
+                uploadUrl = `${BACKEND_URL}/api/upload`;
+                options = {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(jsonPayload)
+                };
+            }
 
+            const response = await fetch(uploadUrl, options);
             const result = await response.json();
             if (!response.ok || !result.success) {
-                throw new Error(result.message || "Upload failed");
+                throw new Error(result.message || result.error || "Upload failed");
             }
 
             // Parallel Formspree backup execution (optional)
