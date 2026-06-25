@@ -2,7 +2,7 @@
 // 0. BACKEND & GOOGLE SHEETS CONFIGURATION
 // ==========================================
 // Paste your Google Apps Script Web App URL here after deployment (e.g. https://script.google.com/macros/s/.../exec)
-const GOOGLE_SCRIPT_URL = "YAHAN_APNI_GOOGLE_SCRIPT_URL_DALO";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyLIKkhhAXExbC-ivsSj_WptWE7qJoFp9f3lH7-xghRoG_xJ-o6gwh73IwI_dau6uTx/exec";
 const SHEET_ID = "YAHAN_APNI_SHEET_KA_ID_DALO";
 
 // Render Backend configuration (Fallback / Alternative backend)
