@@ -65,6 +65,10 @@ function doPost(e) {
       return handleDelete(postData);
     } else if (action === 'verify') {
       return handleVerify(postData);
+    } else if (action === 'initiateUpload') {
+      return handleInitiateUpload(postData);
+    } else if (action === 'uploadChunk') {
+      return handleUploadChunk(postData);
     }
     
     return handleUpload(postData);
@@ -143,6 +147,157 @@ function handleUpload(data) {
   };
   
   return jsonResponse({ success: true, paper: newPaper });
+}
+
+function handleInitiateUpload(data) {
+  const { fileName, fileSize, mimeType, title, exam, year } = data;
+  
+  // Get or create "PYQ_Uploads" Folder in Google Drive
+  const folders = DriveApp.getFoldersByName("PYQ_Uploads");
+  let folder;
+  if (folders.hasNext()) {
+    folder = folders.next();
+  } else {
+    folder = DriveApp.createFolder("PYQ_Uploads");
+  }
+  const folderId = folder.getId();
+  
+  // Call Drive API to initiate resumable upload session
+  const url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable";
+  const payload = {
+    name: fileName,
+    parents: [folderId]
+  };
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      Authorization: "Bearer " + ScriptApp.getOAuthToken(),
+      "X-Upload-Content-Type": mimeType,
+      "X-Upload-Content-Length": fileSize.toString()
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch(url, options);
+  const responseCode = response.getResponseCode();
+  
+  if (responseCode !== 200) {
+    return jsonResponse({ success: false, error: "Drive API returned status " + responseCode + ": " + response.getContentText() });
+  }
+  
+  const headers = response.getHeaders();
+  const locationUrl = headers["Location"] || headers["location"];
+  
+  if (!locationUrl) {
+    return jsonResponse({ success: false, error: "No Location header in response" });
+  }
+  
+  // Generate upload ID and save Location and metadata to cache
+  const uploadId = Utilities.getUuid();
+  const cache = CacheService.getScriptCache();
+  
+  cache.put("upload_" + uploadId, locationUrl, 1200); // 20 minutes expiration
+  cache.put("meta_" + uploadId, JSON.stringify({
+    fileName: fileName,
+    title: title,
+    exam: exam,
+    year: year
+  }), 1200);
+  
+  return jsonResponse({ success: true, uploadId: uploadId });
+}
+
+function handleUploadChunk(data) {
+  const { uploadId, chunkRange, chunkData } = data;
+  
+  const cache = CacheService.getScriptCache();
+  const locationUrl = cache.get("upload_" + uploadId);
+  const metaStr = cache.get("meta_" + uploadId);
+  
+  if (!locationUrl || !metaStr) {
+    return jsonResponse({ success: false, error: "Upload session expired or invalid" });
+  }
+  
+  let base64Content = chunkData;
+  if (chunkData.indexOf(',') !== -1) {
+    base64Content = chunkData.split(',')[1];
+  }
+  
+  const bytes = Utilities.base64Decode(base64Content);
+  const options = {
+    method: "put",
+    headers: {
+      Authorization: "Bearer " + ScriptApp.getOAuthToken(),
+      "Content-Range": chunkRange
+    },
+    payload: bytes,
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch(locationUrl, options);
+  const responseCode = response.getResponseCode();
+  const responseBody = response.getContentText();
+  
+  if (responseCode === 200 || responseCode === 201) {
+    // Complete!
+    const fileInfo = JSON.parse(responseBody);
+    const fileId = fileInfo.id;
+    const metadata = JSON.parse(metaStr);
+    
+    // Set Drive file sharing permissions
+    try {
+      const file = DriveApp.getFileById(fileId);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch(err) {
+      console.log("Could not set sharing permissions on file:", err);
+    }
+    
+    // Append to sheet database
+    const pdfUrl = "https://drive.google.com/uc?export=download&id=" + fileId;
+    const paperId = metadata.fileName.replace(/[^a-zA-Z0-9_.-]/g, '_').replace(/\.pdf$/i, '').toLowerCase();
+    const cleanTitle = metadata.title.trim();
+    const keywords = cleanTitle.toLowerCase().replace(/[-_]/g, ' ').split(/\s+/).filter(w => w.length > 1);
+    const uploadedAt = new Date().toISOString();
+    
+    const sheet = getOrCreateSheet();
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(["id", "title", "exam", "year", "pdf", "uploadedAt", "keywords", "fileId"]);
+    }
+    sheet.appendRow([
+      paperId,
+      cleanTitle,
+      metadata.exam,
+      metadata.year,
+      pdfUrl,
+      uploadedAt,
+      JSON.stringify(keywords),
+      fileId
+    ]);
+    
+    // Clean up cache
+    cache.remove("upload_" + uploadId);
+    cache.remove("meta_" + uploadId);
+    
+    const newPaper = {
+      id: paperId,
+      title: cleanTitle,
+      exam: metadata.exam,
+      year: metadata.year,
+      pdf: pdfUrl,
+      uploadedAt: uploadedAt,
+      keywords: keywords
+    };
+    
+    return jsonResponse({ success: true, status: "completed", paper: newPaper });
+  } else if (responseCode === 308) {
+    // Chunk upload succeeded, but file is incomplete
+    return jsonResponse({ success: true, status: "incomplete" });
+  } else {
+    // Error
+    return jsonResponse({ success: false, error: "Drive API returned error code " + responseCode + ": " + responseBody });
+  }
 }
 
 function handleDelete(data) {

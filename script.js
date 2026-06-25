@@ -219,7 +219,7 @@ document.addEventListener("DOMContentLoaded", loadAllPapers);
 // ==========================================
 // 2. STABLE HIGH-SPEED FILE UPLOAD PIPELINE
 // ==========================================
-function uploadDirectly() {
+async function uploadDirectly() {
     const customTitle = document.getElementById("upload-custom-title").value.trim();
     const fileInput = document.getElementById("upload-file").files[0];
     const statusText = document.getElementById("upload-status");
@@ -238,93 +238,185 @@ function uploadDirectly() {
         return;
     }
 
+    let detectedExam = "Other";
+    let upperTitle = customTitle.toUpperCase();
+    if (upperTitle.includes("BPSC")) detectedExam = "BPSC";
+    else if (upperTitle.includes("SSC")) detectedExam = "SSC";
+    else if (upperTitle.includes("RAILWAY")) detectedExam = "Railway";
+
+    const yearMatch = customTitle.match(/\b(20\d{2})\b/);
+    let detectedYear = yearMatch ? yearMatch[0] : "2026";
+    const fileName = `${Date.now()}_${fileInput.name}`;
+
     btn.innerText = "Uploading File... Please wait...";
     btn.disabled = true;
     statusText.style.color = "#1e3a8a";
-    statusText.innerText = "Processing secure cloud injection...";
 
-    const reader = new FileReader();
-    reader.readAsDataURL(fileInput);
-    
-    reader.onload = async function () {
-        const base64PDF = reader.result;
+    const isGoogleScript = GOOGLE_SCRIPT_URL && 
+                           GOOGLE_SCRIPT_URL !== "YAHAN_APNI_GOOGLE_SCRIPT_URL_DALO" && 
+                           GOOGLE_SCRIPT_URL.startsWith("https://script.google.com");
 
-        let detectedExam = "Other";
-        let upperTitle = customTitle.toUpperCase();
-        if (upperTitle.includes("BPSC")) detectedExam = "BPSC";
-        else if (upperTitle.includes("SSC")) detectedExam = "SSC";
-        else if (upperTitle.includes("RAILWAY")) detectedExam = "Railway";
-
-        const yearMatch = customTitle.match(/\b(20\d{2})\b/);
-        let detectedYear = yearMatch ? yearMatch[0] : "2026";
-
-        // JSON formatting metadata template package
-        const jsonPayload = {
-            action: "upload", // Action identifier for Google Apps Script
-            title: customTitle,
-            exam: detectedExam,
-            year: detectedYear,
-            fileName: `${Date.now()}_${fileInput.name}`,
-            pdfData: base64PDF
-        };
-
+    if (isGoogleScript) {
+        // --- GOOGLE APPS SCRIPT CHUNKED RESUMABLE UPLOAD ---
         try {
-            let uploadUrl;
-            let options;
+            statusText.innerText = "Initiating secure cloud upload...";
             
-            if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL !== "YAHAN_APNI_GOOGLE_SCRIPT_URL_DALO" && GOOGLE_SCRIPT_URL.startsWith("https://script.google.com")) {
-                uploadUrl = GOOGLE_SCRIPT_URL;
-                // Google Apps Script requires a simple POST (no JSON headers) to avoid CORS preflight options blocks
-                options = {
-                    method: "POST",
-                    body: JSON.stringify(jsonPayload)
-                };
-            } else {
-                uploadUrl = `${BACKEND_URL}/api/upload`;
-                options = {
-                    method: "POST",
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(jsonPayload)
-                };
+            const initiatePayload = {
+                action: "initiateUpload",
+                fileName: fileName,
+                fileSize: fileInput.size,
+                mimeType: "application/pdf",
+                title: customTitle,
+                exam: detectedExam,
+                year: detectedYear
+            };
+
+            const initRes = await fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify(initiatePayload)
+            });
+            const initResult = await initRes.json();
+
+            if (!initRes.ok || !initResult.success) {
+                throw new Error(initResult.error || "Failed to initiate upload");
             }
 
-            const response = await fetch(uploadUrl, options);
-            const result = await response.json();
-            if (!response.ok || !result.success) {
-                throw new Error(result.message || result.error || "Upload failed");
+            const uploadId = initResult.uploadId;
+            const CHUNK_SIZE = 1024 * 1024 * 4; // 4MB chunks
+            const totalSize = fileInput.size;
+            let start = 0;
+
+            while (start < totalSize) {
+                const end = Math.min(start + CHUNK_SIZE, totalSize);
+                const chunk = fileInput.slice(start, end);
+                const chunkRange = `bytes ${start}-${end - 1}/${totalSize}`;
+
+                // Read chunk as base64
+                const base64Chunk = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(chunk);
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                });
+
+                // Update progress feedback
+                const pct = Math.round((start / totalSize) * 100);
+                statusText.innerText = `Uploading: ${pct}% (${(start / (1024 * 1024)).toFixed(1)}MB of ${(totalSize / (1024 * 1024)).toFixed(1)}MB)`;
+                btn.innerText = `Uploading (${pct}%)`;
+
+                const chunkPayload = {
+                    action: "uploadChunk",
+                    uploadId: uploadId,
+                    chunkRange: chunkRange,
+                    chunkData: base64Chunk
+                };
+
+                const chunkRes = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: "POST",
+                    body: JSON.stringify(chunkPayload)
+                });
+                const chunkResult = await chunkRes.json();
+
+                if (!chunkRes.ok || !chunkResult.success) {
+                    throw new Error(chunkResult.error || "Chunk upload failed");
+                }
+
+                if (chunkResult.status === "completed") {
+                    // Send backup formspree notification asynchronously
+                    try {
+                        const emailData = new FormData();
+                        emailData.append("Exam_Title", customTitle);
+                        emailData.append("Attached_File", fileInput);
+                        fetch("https://formspree.io/f/xojzzdaw", { method: "POST", body: emailData });
+                    } catch(e){}
+
+                    // Insert paper into lists
+                    globalPapers.unshift(chunkResult.paper);
+                    renderPapersList(globalPapers);
+
+                    statusText.style.color = "green";
+                    statusText.innerText = "🎉 Success! Paper uploaded and live permanently!";
+                    
+                    document.getElementById("upload-custom-title").value = "";
+                    const fileEl = document.getElementById("upload-file");
+                    fileEl.value = "";
+                    fileEl.dispatchEvent(new Event("change"));
+                    
+                    setTimeout(() => { statusText.innerText = ""; }, 3000);
+                    return;
+                }
+
+                start = end;
             }
-
-            // Parallel Formspree backup execution (optional)
-            try {
-                const emailData = new FormData();
-                emailData.append("Exam_Title", customTitle);
-                emailData.append("Attached_File", fileInput);
-                fetch("https://formspree.io/f/xojzzdaw", { method: "POST", body: emailData });
-            } catch(e){}
-
-            // Array ke top par inject karke list refresh karo using server returned object
-            globalPapers.unshift(result.paper);
-            renderPapersList(globalPapers);
-
-            statusText.style.color = "green";
-            statusText.innerText = "🎉 Success! Paper uploaded and live permanently!";
-            
-            document.getElementById("upload-custom-title").value = "";
-            const fileEl = document.getElementById("upload-file");
-            fileEl.value = "";
-            fileEl.dispatchEvent(new Event("change"));
-            
-            setTimeout(() => { statusText.innerText = ""; }, 3000);
-
         } catch (error) {
             console.error("Upload Error:", error);
             statusText.style.color = "red";
-            statusText.innerText = "❌ Upload failed. Make sure backend server is running.";
+            statusText.innerText = `❌ Upload failed: ${error.message}`;
         } finally {
             btn.innerText = "Upload & Go Live";
             btn.disabled = false;
         }
-    };
+    } else {
+        // --- FALLBACK: EXPRESS BACKEND SINGLE UPLOAD ---
+        const reader = new FileReader();
+        reader.readAsDataURL(fileInput);
+        
+        reader.onload = async function () {
+            const base64PDF = reader.result;
+
+            const jsonPayload = {
+                title: customTitle,
+                exam: detectedExam,
+                year: detectedYear,
+                fileName: fileName,
+                pdfData: base64PDF
+            };
+
+            try {
+                const uploadUrl = `${BACKEND_URL}/api/upload`;
+                const options = {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(jsonPayload)
+                };
+
+                const response = await fetch(uploadUrl, options);
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || result.error || "Upload failed");
+                }
+
+                // Send backup formspree notification
+                try {
+                    const emailData = new FormData();
+                    emailData.append("Exam_Title", customTitle);
+                    emailData.append("Attached_File", fileInput);
+                    fetch("https://formspree.io/f/xojzzdaw", { method: "POST", body: emailData });
+                } catch(e){}
+
+                globalPapers.unshift(result.paper);
+                renderPapersList(globalPapers);
+
+                statusText.style.color = "green";
+                statusText.innerText = "🎉 Success! Paper uploaded and live permanently!";
+                
+                document.getElementById("upload-custom-title").value = "";
+                const fileEl = document.getElementById("upload-file");
+                fileEl.value = "";
+                fileEl.dispatchEvent(new Event("change"));
+                
+                setTimeout(() => { statusText.innerText = ""; }, 3000);
+
+            } catch (error) {
+                console.error("Upload Error:", error);
+                statusText.style.color = "red";
+                statusText.innerText = "❌ Upload failed. Make sure backend server is running.";
+            } finally {
+                btn.innerText = "Upload & Go Live";
+                btn.disabled = false;
+            }
+        };
+    }
 }
 
 // ==========================================
