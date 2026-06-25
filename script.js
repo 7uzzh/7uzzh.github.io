@@ -23,17 +23,29 @@ async function loadAllPapers() {
     let jsonPapers = [];
     let sheetPapers = [];
 
-    // 1. Fetch from database with cache-buster
+    // 1. Fetch from database with cache-buster (Try API endpoint first, fallback to static JSON)
     try {
         const fetchUrl = BACKEND_URL 
             ? `${BACKEND_URL}/api/papers?t=${Date.now()}` 
-            : `data/papers.json?t=${Date.now()}`;
-        const jsonResponse = await fetch(fetchUrl);
+            : `/api/papers?t=${Date.now()}`;
+        let jsonResponse = await fetch(fetchUrl);
+        if (!jsonResponse.ok && !BACKEND_URL) {
+            // Local fallback: try serving static data/papers.json if local server is not running
+            jsonResponse = await fetch(`data/papers.json?t=${Date.now()}`);
+        }
         if (jsonResponse.ok) { 
             jsonPapers = await jsonResponse.json(); 
         }
     } catch(e) { 
-        console.log("Database fetch failed:", e); 
+        console.log("API fetch failed, attempting static file fallback:", e); 
+        try {
+            const fallbackResponse = await fetch(`data/papers.json?t=${Date.now()}`);
+            if (fallbackResponse.ok) {
+                jsonPapers = await fallbackResponse.json();
+            }
+        } catch(fallbackErr) {
+            console.log("Static papers.json fallback failed:", fallbackErr);
+        }
     }
 
     // 2. Fetch from Google Sheet (only if configured and NOT placeholder)

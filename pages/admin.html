@@ -173,8 +173,11 @@
             try {
                 const fetchUrl = BACKEND_URL 
                     ? `${BACKEND_URL}/api/papers?t=${Date.now()}` 
-                    : `../data/papers.json?t=${Date.now()}`;
-                const res = await fetch(fetchUrl);
+                    : `/api/papers?t=${Date.now()}`;
+                let res = await fetch(fetchUrl);
+                if (!res.ok && !BACKEND_URL) {
+                    res = await fetch(`../data/papers.json?t=${Date.now()}`);
+                }
                 if (!res.ok) throw new Error();
                 const papers = await res.json();
                 
