@@ -219,6 +219,19 @@ document.addEventListener("DOMContentLoaded", loadAllPapers);
 // ==========================================
 // 2. STABLE HIGH-SPEED FILE UPLOAD PIPELINE
 // ==========================================
+function resetUploadForm() {
+    const titleInput = document.getElementById("upload-custom-title");
+    if (titleInput) titleInput.value = "";
+    
+    const fileEl = document.getElementById("upload-file");
+    if (fileEl) fileEl.value = "";
+    
+    const dropText = document.querySelector(".file-upload-text");
+    if (dropText) {
+        dropText.innerHTML = `Drag & drop your PDF here, or <span>browse</span>`;
+    }
+}
+
 async function uploadDirectly() {
     const customTitle = document.getElementById("upload-custom-title").value.trim();
     const fileInput = document.getElementById("upload-file").files[0];
@@ -234,7 +247,12 @@ async function uploadDirectly() {
     if (fileInput.type !== "application/pdf" && !fileInput.name.endsWith(".pdf")) {
         statusText.style.color = "red";
         statusText.innerText = "❌ Only .pdf files are allowed.";
-        document.getElementById("upload-file").value = ""; 
+        const fileEl = document.getElementById("upload-file");
+        if (fileEl) fileEl.value = "";
+        const dropText = document.querySelector(".file-upload-text");
+        if (dropText) {
+            dropText.innerHTML = `Drag & drop your PDF here, or <span>browse</span>`;
+        }
         return;
     }
 
@@ -337,10 +355,7 @@ async function uploadDirectly() {
                     statusText.style.color = "green";
                     statusText.innerText = "🎉 Success! Paper uploaded and live permanently!";
                     
-                    document.getElementById("upload-custom-title").value = "";
-                    const fileEl = document.getElementById("upload-file");
-                    fileEl.value = "";
-                    fileEl.dispatchEvent(new Event("change"));
+                    resetUploadForm();
                     
                     setTimeout(() => { statusText.innerText = ""; }, 3000);
                     return;
@@ -400,10 +415,7 @@ async function uploadDirectly() {
                 statusText.style.color = "green";
                 statusText.innerText = "🎉 Success! Paper uploaded and live permanently!";
                 
-                document.getElementById("upload-custom-title").value = "";
-                const fileEl = document.getElementById("upload-file");
-                fileEl.value = "";
-                fileEl.dispatchEvent(new Event("change"));
+                resetUploadForm();
                 
                 setTimeout(() => { statusText.innerText = ""; }, 3000);
 
